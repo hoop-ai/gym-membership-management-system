@@ -1,39 +1,101 @@
-# Compiled class files
+# =====================================================================
+# .gitignore for the SEN3006 Recipe Management System
+# =====================================================================
+# Keep the repository clean: only source code, documentation, build
+# scripts, and the packaged runnable artifacts are tracked.
+# =====================================================================
+
+# ---- Compiled Java output ------------------------------------------
 *.class
 bin/
 out/
 build/
+target/
 
-# Package files
+# ---- Archives ------------------------------------------------------
+# Default: ignore every archive...
 *.jar
 *.war
 *.ear
 *.zip
 *.tar.gz
+*.tgz
+*.rar
+*.7z
 
-# IDE
+# ...except the two we ship intentionally.
+!RecipeManagerGUI.jar
+!SEN3006_Recipe_Management_System.zip
+
+# ---- IDE and editor settings ---------------------------------------
 .idea/
 *.iml
+*.ipr
+*.iws
 .project
 .classpath
 .settings/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# VS Code
 .vscode/
+*.code-workspace
+nbproject/private/
+*.bak
+*.swp
+*~
 
-# PlantUML exports
-docs/uml/exports/
+# ---- Bundled JDK / runtime downloads -------------------------------
+# Some IDEs cache a full JDK inside the workspace; never publish it.
+oracleJdk*/
+**/oracleJdk*/
+jdk-*/
+jre-*/
 
-# Environment
+# ---- Operating-system noise ----------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+
+# ---- Environment, secrets, local config ----------------------------
 .env
-.env.local
+.env.*
+env/
+.venv/
+secrets/
+*.pem
+*.key
 
-# AI / Claude Code (not for submission)
-CLAUDE.md
+# ---- Tooling-only directories (not part of the deliverable) --------
 .claude/
 .mcp.json
+CLAUDE.md
+.cursor/
+.aider*
+.gemini/
+.copilot/
+.continue/
+docs/superpowers/
 docs/design/project-options.md
+generate-pdf-report.py
+
+# ---- Generated diagram exports & temporary docs --------------------
+docs/uml/exports/
+*.pdf
+*.html
+!docs/report/*.html
+**/baseline-main-output.txt
+**/test-output.txt
+
+# ---- Logs and crash dumps ------------------------------------------
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# ---- Package manager cruft (defensive) -----------------------------
+node_modules/
+.gradle/
+.mvn/

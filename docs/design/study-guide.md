@@ -1,100 +1,210 @@
-# Study Guide — How to Explain This Project
+# Study Guide -- Recipe Management System
 
-> Read this before the presentation. The professor will ask questions.
-> If you can answer these, you'll ace it.
+Preparation document for the in-person presentation. Every class is
+explained in one paragraph, then the Q&A cheat-sheet answers the most
+likely professor questions.
 
-## The 30-Second Pitch
+---
 
-"We built a Task Management System for software teams. It creates different types of tasks — bugs, features, and documentation — using the **Factory Method** pattern. It prioritizes those tasks using swappable algorithms with the **Strategy** pattern. The whole system follows SOLID principles, meaning you can add new task types or new sorting strategies without changing any existing code."
+## Every class in one paragraph each
 
-## What Each Class Does (Plain English)
+### `Recipe` (interface)
+The **Product** in the Factory Method pattern. Declares only the
+methods that every recipe must support -- id, title, description,
+status, priority, cook-by date, creation timestamp, and a `getType()`
+identifier. Keeping this interface narrow is the Interface Segregation
+Principle in action: type-specific accessors (`getSweetness`,
+`getCookingTimeMinutes`, `getServeTemperature`) deliberately stay on
+the concrete classes.
 
-| Class | What it does | One sentence |
-|---|---|---|
-| `Task` | Interface | "The contract — every task must have an ID, title, priority, status, etc." |
-| `AbstractTask` | Base class | "Holds the common stuff — ID counter, title, description, status. All task types extend this." |
-| `BugTask` | Bug report | "A task that also has severity (LOW to CRITICAL) and steps to reproduce." |
-| `FeatureTask` | Feature request | "A task that also has estimated effort in hours and business value." |
-| `DocumentationTask` | Doc task | "A task that also has document type (API, guide, tutorial) and target audience." |
-| `TaskStatus` | State machine | "The 5 states a task can be in (OPEN, IN_PROGRESS, REVIEW, DONE, BLOCKED) and which transitions are allowed." |
-| `TaskFactory` | Abstract factory | "Defines HOW tasks are created. Subclasses decide WHICH type to create." |
-| `BugTaskFactory` | Bug creator | "Creates BugTask with default severity MEDIUM." |
-| `FeatureTaskFactory` | Feature creator | "Creates FeatureTask with default 8 hours effort." |
-| `DocumentationTaskFactory` | Doc creator | "Creates DocumentationTask with default type API." |
-| `PriorityStrategy` | Sorting interface | "One method — sort() — that different strategies implement differently." |
-| `UrgentFirstStrategy` | Sort by priority | "Highest priority number first. For emergencies." |
-| `DeadlineFirstStrategy` | Sort by deadline | "Earliest deadline first. For sprint planning." |
-| `SeverityFirstStrategy` | Sort by bug severity | "Bugs first (by CRITICAL→LOW), then non-bugs by priority." |
-| `TaskManager` | Coordinator | "The brain — uses factories to create tasks, uses strategies to sort them." |
-| `Main` | Demo/test | "Runs all tests and prints results." |
+### `AbstractRecipe`
+The **Abstract Product** that consolidates shared state and behaviour.
+Auto-increments a static ID counter, defaults the status to `DRAFT`,
+validates priority and title in the constructor, and provides a
+`toString()` that subclasses extend by appending their own fields --
+the *Template Method* mini-pattern. `setStatus(...)` here delegates
+validation to the state machine on `RecipeStatus`.
 
-## How the Two Patterns Work
+### `DessertRecipe`, `MainCourseRecipe`, `AppetizerRecipe`
+The three **Concrete Products**. Each adds two type-specific fields:
+desserts have sweetness and preparation notes, main courses have
+cooking time and a satisfaction rating, appetizers have a serving
+temperature and an occasion label. Each overrides `getType()` to
+return the type identifier the factory registry uses.
 
-### Factory Method Pattern
-**Problem it solves:** "If we used `new BugTask()` everywhere, adding a new task type would mean changing every place that creates tasks."
+### `RecipeStatus` (enum)
+The lightweight **State** model. Each constant overrides
+`allowedTransitions()` to declare which states it may move to. The
+public method `canTransitionTo(RecipeStatus)` consults that set so
+clients never need to know the rules directly. `COOKED` is a terminal
+state with no outgoing transitions; `PAUSED` is a one-way pause that
+returns to `DRAFT` only.
 
-**How it works:**
-1. `TaskFactory` is abstract — it says "I can create a Task, but I don't say which kind"
-2. `BugTaskFactory` extends it — it says "When you ask me to create a task, I give you a BugTask"
-3. `TaskManager` stores a map: "BUG" → BugTaskFactory, "FEATURE" → FeatureTaskFactory
-4. When you call `manager.createTask("BUG", ...)`, it looks up the factory and delegates
+### `RecipeFactory`
+The **Abstract Creator**. Declares one abstract method,
+`createRecipe(title, description, priority)`, that concrete subclasses
+must implement. Also defines `createRecipeWithDeadline(...)`, a
+template method that calls the factory method and then attaches a
+deadline -- a small layered example of Template Method on top of
+Factory Method.
 
-**Key line of code:** `Task task = factory.createTask(title, description, priority);`
-The caller gets a `Task` back — it never knows it's actually a `BugTask`.
+### `DessertRecipeFactory`, `MainCourseRecipeFactory`, `AppetizerRecipeFactory`
+The three **Concrete Creators**. Each overrides `createRecipe(...)` to
+instantiate one specific concrete recipe with sensible defaults
+(MEDIUM sweetness, 45-minute cook time, ROOM serve temperature). Each
+also exposes a type-specific richer method (`createDessertRecipe`,
+`createMainCourseRecipe`, `createAppetizerRecipe`) for callers that
+need to control every field.
 
-### Strategy Pattern
-**Problem it solves:** "If we hardcoded sorting logic with if-else, adding a new sorting method would mean modifying the TaskManager."
+### `SortStrategy` (interface)
+The **Strategy** abstraction. A single-method interface whose
+implementations return a new sorted list without mutating the input.
+Choosing one method is intentional -- the Interface Segregation
+Principle says clients should not depend on what they do not use.
 
-**How it works:**
-1. `PriorityStrategy` is an interface with one method: `sort(List<Task>)`
-2. Each strategy implements it differently (by priority, by deadline, by severity)
-3. `TaskManager` holds a `currentStrategy` reference
-4. You can swap it at runtime: `manager.setPriorityStrategy(new DeadlineFirstStrategy())`
+### `UrgentFirstStrategy`, `DeadlineFirstStrategy`, `DessertFirstStrategy`
+Three **Concrete Strategies**. `UrgentFirstStrategy` sorts by priority
+descending; `DeadlineFirstStrategy` sorts by cook-by date ascending
+with `null` dates last; `DessertFirstStrategy` is a two-phase sort
+that puts every dessert first (ranked by sweetness) and then orders
+the rest by priority. The third strategy is the most interesting
+because it makes a type-aware decision -- showing that Strategy is
+not limited to one-line comparators.
 
-**Key line of code:** `return currentStrategy.sort(tasks);`
-The TaskManager doesn't know HOW the sorting works — it just delegates.
+### `RecipeManager`
+The single coordinator. It is the **Client** of the Factory Method
+pattern and the **Context** of the Strategy pattern. All its fields
+are abstractions: `List<Recipe>`, `SortStrategy`, and a
+`Map<String, RecipeFactory>` registry -- a simplified Service Locator
+that lets clients create recipes by string type. State-transition
+validation, lookup, removal, and summarisation also live here.
 
-## SOLID Principles — What to Say
+### `Main`
+The scripted demonstration. Six labelled test sections walk through
+the Factory Method pattern, the Strategy pattern, the lifecycle state
+machine, an integration scenario, the SOLID principles (including a
+live runtime strategy swap), and six edge cases. Each section ends
+with one or more `[PASS]` lines.
 
-| Principle | What it means | Example from our code |
-|---|---|---|
-| **S**ingle Responsibility | Each class does one thing | "TaskFactory only creates tasks. PriorityStrategy only sorts. They don't mix." |
-| **O**pen/Closed | Open for extension, closed for modification | "To add a ResearchTask, I create ResearchTask.java and ResearchTaskFactory.java. I don't touch any existing class." |
-| **L**iskov Substitution | Subtypes can replace parent types | "I can use any TaskFactory where TaskFactory is expected — BugTaskFactory, FeatureTaskFactory, they all work the same way." |
-| **I**nterface Segregation | Small, focused interfaces | "PriorityStrategy has ONE method. Task interface only has methods ALL tasks need. Severity is only on BugTask." |
-| **D**ependency Inversion | Depend on abstractions | "TaskManager uses Task (interface), not BugTask (class). It uses PriorityStrategy (interface), not UrgentFirstStrategy (class)." |
+### `RecipeManagementApp`
+The interactive console driver. Wraps the manager in a menu loop so
+the user (or the professor) can create recipes, change strategy,
+transition status, filter by status, view summaries, and remove
+recipes. Uses only `Scanner` and `System.out`; no third-party CLI
+library.
 
-## Professor Questions — Cheat Sheet
+### GUI classes (`gui/RecipeManagerGUI`, `RecipeFormPanel`, `RecipeTablePanel`, `RecipeTableModel`, `DemoScenarios`)
+A small Swing front end. The form panel calls
+`RecipeManager.createRecipe(...)`. The table panel rebuilds from
+`getOrderedRecipes()` whenever the strategy changes -- making the
+Strategy pattern visible to a non-coder. The `DemoScenarios` class
+provides one-click loaders that mirror the data in `Main.java`'s
+test sections.
 
-**Q: "Why Factory Method instead of Abstract Factory?"**
-A: "Abstract Factory creates families of related objects. We only have one family — tasks. Factory Method is simpler and fits better. If we needed to create related objects like Task + TaskView + TaskValidator together, then Abstract Factory would make sense."
+---
 
-**Q: "Why not just use if-else instead of Strategy?"**
-A: "If-else violates the Open/Closed Principle. Every time you add a new sorting algorithm, you'd modify the same if-else chain. With Strategy, you just create a new class that implements PriorityStrategy. Zero changes to existing code."
+## Q&A cheat-sheet
 
-**Q: "What happens if I want to add a new task type?"**
-A: "Three steps: 1) Create the new class extending AbstractTask. 2) Create its factory extending TaskFactory. 3) Register it in TaskManager. No existing code changes."
+**Q. Why two patterns instead of one?**
+A. The two problems the assignment poses are different: creating
+different *kinds* of objects (Creational -> Factory Method) and
+swapping *algorithms* on those objects (Behavioral -> Strategy). Using
+both makes the project demonstrate one Creational and one Behavioral
+pattern, which the assignment explicitly recommends.
 
-**Q: "Is this thread-safe?"**
-A: "No. The static ID counter and the task list are not synchronized. For a multi-threaded version, we'd use AtomicInteger for IDs and CopyOnWriteArrayList or synchronized blocks for the task list."
+**Q. Why an abstract `RecipeFactory` class instead of a `RecipeFactory`
+interface?**
+A. The class hosts a useful template method
+(`createRecipeWithDeadline`) that calls the abstract factory method and
+then attaches a deadline. Interfaces in Java 7 cannot carry shared
+behaviour; the abstract class can. Java 8 default methods would work
+too, but the abstract-class form matches Gamma et al.'s original
+Factory Method definition more faithfully.
 
-**Q: "Why not use the State pattern for the task lifecycle?"**
-A: "The State pattern would mean creating separate classes for each state (OpenState, InProgressState, etc.). Our lifecycle is simple enough that an enum with transition rules is cleaner and has less code. If states had complex behavior, State pattern would be better."
+**Q. What if I want a new recipe type?**
+A. Two new files: one extending `AbstractRecipe`, one extending
+`RecipeFactory`. Then one call to `manager.registerFactory("NEW_TYPE",
+new MyNewFactory())`. Zero modifications to any existing class. This
+is the Open/Closed Principle made executable.
 
-**Q: "How would you add persistence?"**
-A: "We'd create a TaskRepository interface with save/load methods, then implement it for file storage or a database. TaskManager would depend on the repository interface (DIP), not the concrete implementation."
+**Q. What if I want a new sort strategy?**
+A. One new class implementing `SortStrategy`, then
+`manager.setSortStrategy(new MyStrategy())`. Test 5 in `Main.java`
+does exactly that, using an anonymous class defined inline.
 
-**Q: "What are the limitations?"**
-A: "No persistence (data lost on exit), no GUI (console only), single-user (not thread-safe), no undo support. Future improvements could add Observer pattern for notifications, Command pattern for undo, and a persistence layer."
+**Q. How are invalid status transitions prevented?**
+A. The `RecipeStatus` enum is itself a state machine: each constant
+declares its allowed targets. `AbstractRecipe.setStatus(...)` consults
+`canTransitionTo(...)` and throws `IllegalArgumentException` if the
+target is not allowed. The terminal state `COOKED` returns an empty
+allowed-set, so nothing can leave it.
 
-**Q: "How does the factory registry work?"**
-A: "It's a HashMap mapping type strings to factory instances. When you call createTask('BUG'), it does factoryRegistry.get('BUG') to find BugTaskFactory, then calls createTask() on it. This is a simplified Service Locator pattern."
+**Q. Why is `DessertFirstStrategy` allowed to know about
+`DessertRecipe` -- isn't that a coupling violation?**
+A. The strategy still depends on the `Recipe` interface for everything
+except one `instanceof DessertRecipe` check used to decide ranking.
+The same coupling appears in the original Strategy pattern when the
+algorithm is genuinely type-aware -- for example, Comparator
+implementations that down-cast in `compare(...)`. Keeping the rest of
+the algorithm against the abstraction limits the blast radius.
 
-## Before the Presentation
+**Q. Why no Maven or Gradle?**
+A. The assignment explicitly mandates "pure Java with the standard
+library". Maven and Gradle would add dependencies, configuration, and
+build-tool noise without changing any architectural property of the
+system. A single `javac` line and a single `java` line are clearer for
+a demonstration of patterns.
 
-- [ ] Run the program once to make sure it compiles and all tests pass
-- [ ] Read through Main.java — understand what each test section does
-- [ ] Read through TaskManager.java — understand how it coordinates everything
-- [ ] Practice the 30-second pitch out loud
-- [ ] Review the Q&A cheat sheet above
-- [ ] Know where each SOLID principle is demonstrated
+**Q. Where is the Factory Method pattern actually visible at runtime?**
+A. In `RecipeManager.createRecipe(...)`, line by line: the method
+looks up a `RecipeFactory` by string key, calls
+`factory.createRecipe(...)`, and stores the returned `Recipe`. The
+manager never names a concrete recipe class. Add a `println` to any
+factory's `createRecipe` and you will see the polymorphic call live.
+
+**Q. Where is the Strategy pattern actually visible at runtime?**
+A. In `RecipeManager.getOrderedRecipes()`, which calls
+`currentStrategy.sort(recipes)`. Swap the strategy with
+`setSortStrategy(...)` and the next call to `getOrderedRecipes()`
+returns a list in a different order, with no other code changes. The
+GUI binds this method to the *Sort by* dropdown so the swap is
+literally visible.
+
+**Q. Why are GUI classes in a `gui/` subfolder but with no
+`package gui;` declaration?**
+A. Java 8 forbids importing default-package classes from a named
+package. The GUI needs to reference engine types
+(`Recipe`, `RecipeManager`, ...) which live in the default package.
+Keeping the GUI in the default package too lets the GUI reference
+those types directly. The `gui/` directory is purely organisational --
+it has no language-level meaning.
+
+**Q. How is the project tested without JUnit?**
+A. `Main.java` contains six self-checking sections that print
+`[PASS]` on success. Edge cases are exercised in Test 6 and scored
+out of six. The decision to skip JUnit avoids any external dependency
+while still giving the professor a single deterministic output to
+verify.
+
+---
+
+## Live-demo checklist
+
+1. **Show the file tree.** `tree -L 3` or just open the workspace --
+   point out that the 17 source files split cleanly into product,
+   factory, strategy, manager, and entry-point layers.
+2. **Run the test demo.** `java -cp bin Main` -- talk through the
+   `[PASS]` markers as they fly past.
+3. **Open the GUI.** `java -jar RecipeManagerGUI.jar`. Load the
+   *Strategy demo*. Switch *Sort by* from `Urgent First` to
+   `Dessert First` -- watch the table reorder live. Mention that the
+   manager is unchanged; the only difference is the installed
+   `SortStrategy`.
+4. **Trigger a validation error.** Try to type priority `0`. The
+   engine throws, the GUI surfaces the message in a dialog. Make the
+   point that the validation belongs to the engine, not the GUI.
+5. **Trigger an invalid transition.** Pick a `DRAFT` row, hit
+   *Mark cooked*. The GUI shows the state-machine rejection.
+6. **Close the demo with the file structure.** Re-emphasise that
+   adding a new recipe type or strategy means new files only -- the
+   manager never changes. That is the project's main message.

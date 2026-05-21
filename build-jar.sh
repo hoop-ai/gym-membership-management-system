@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds TaskManagerGUI.jar — a self-contained runnable JAR for the GUI demo.
+# Builds RecipeManagerGUI.jar -- a self-contained runnable JAR for the GUI demo.
 # Run this once before zipping for the professor.
 
 set -euo pipefail
@@ -15,13 +15,15 @@ echo "==> Compiling all sources (engine + GUI)"
 javac -d bin src/main/java/*.java src/main/java/gui/*.java
 
 echo "==> Writing JAR manifest"
-echo "Manifest-Version: 1.0" > manifest.txt
-echo "Main-Class: TaskManagerGUI" >> manifest.txt
-echo "" >> manifest.txt
+cat > manifest.txt <<'EOF'
+Manifest-Version: 1.0
+Main-Class: RecipeManagerGUI
 
-echo "==> Building TaskManagerGUI.jar"
-jar cfm TaskManagerGUI.jar manifest.txt -C bin .
+EOF
+
+echo "==> Building RecipeManagerGUI.jar"
+jar cfm RecipeManagerGUI.jar manifest.txt -C bin .
 rm manifest.txt
 
 echo "==> Done. To launch:"
-echo "    java -jar TaskManagerGUI.jar"
+echo "    java -jar RecipeManagerGUI.jar"

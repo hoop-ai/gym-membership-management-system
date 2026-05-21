@@ -1,38 +1,45 @@
 # Use Case Diagram
 
-This diagram shows the use cases available to the **Project Manager** actor in the Task Management System. Task creation use cases include validation, and changing task status may trigger invalid-transition handling.
+Every operation a cook can perform. The PlantUML source is in
+[recipe-management-usecase.puml](recipe-management-usecase.puml).
 
 ```mermaid
 flowchart LR
-    PM(("Project Manager"))
-
-    subgraph Task Management System
-        UC_Bug["Create Bug Task"]
-        UC_Feature["Create Feature Task"]
-        UC_Doc["Create Documentation Task"]
-        UC_Validate["Validate Task Data"]
-        UC_ViewAll["View All Tasks"]
-        UC_ViewStatus["View Tasks by Status"]
-        UC_Prioritize["Prioritize Tasks\n(with Strategy)"]
-        UC_ChangeStatus["Change Task Status"]
-        UC_InvalidTransition["Handle Invalid\nTransition"]
-        UC_Remove["Remove Task"]
-        UC_SwitchStrategy["Switch Priority\nStrategy"]
+    Cook(("Cook<br/>(User)"))
+    subgraph RMS [Recipe Management System]
+      UC1[Create a recipe]
+      UC2[View all recipes]
+      UC3[View ordered recipes]
+      UC4[Change sort strategy]
+      UC5[Transition recipe status]
+      UC6[Filter recipes by status]
+      UC7[View recipe details]
+      UC8[Show summary]
+      UC9[Remove a recipe]
+      UC10[Load demo scenario]
     end
-
-    PM --> UC_Bug
-    PM --> UC_Feature
-    PM --> UC_Doc
-    PM --> UC_ViewAll
-    PM --> UC_ViewStatus
-    PM --> UC_Prioritize
-    PM --> UC_ChangeStatus
-    PM --> UC_Remove
-    PM --> UC_SwitchStrategy
-
-    UC_Bug -.->|include| UC_Validate
-    UC_Feature -.->|include| UC_Validate
-    UC_Doc -.->|include| UC_Validate
-
-    UC_ChangeStatus -.->|extend| UC_InvalidTransition
+    Cook --- UC1
+    Cook --- UC2
+    Cook --- UC3
+    Cook --- UC4
+    Cook --- UC5
+    Cook --- UC6
+    Cook --- UC7
+    Cook --- UC8
+    Cook --- UC9
+    Cook --- UC10
 ```
+
+## Pattern annotations
+
+| Use case | Pattern involvement |
+|---|---|
+| Create a recipe | Factory Method -- the manager looks up the right factory by type key and delegates the `new` call to it. |
+| View ordered recipes | Strategy -- the manager delegates ordering to the current `SortStrategy`. |
+| Change sort strategy | Strategy swap -- a single setter call replaces the algorithm at runtime. |
+| Transition recipe status | State -- validated by the `RecipeStatus` enum's transition rules. |
+| Load demo scenario | GUI helper -- the `DemoScenarios` class mirrors the data sets used in the scripted tests. |
+
+Every use case is reachable from all three entry points (`Main`,
+`RecipeManagementApp`, `gui/RecipeManagerGUI`) because all three drive
+the same `RecipeManager` public API.

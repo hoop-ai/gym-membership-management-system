@@ -1,62 +1,39 @@
-@startuml component-diagram
-!theme plain
-skinparam shadowing false
-skinparam defaultFontSize 11
-skinparam componentStyle uml2
-skinparam packageStyle rectangle
+@startuml RecipeManagementComponentDiagram
+title Recipe Management System -- Component Diagram
 
-title Task Management System - Component Diagram
+skinparam componentStyle rectangle
 
-package "UI Module" {
-    component [Main] as UI
+package "Presentation layer" {
+    [Main\n(test demo)]                 as MAIN
+    [RecipeManagementApp\n(console)]    as APP
+    [RecipeManagerGUI\n(Swing GUI)]     as GUI
 }
 
-package "Manager Module" {
-    component [TaskManager] as MGR
+package "Coordination layer" {
+    [RecipeManager] as MGR
 }
 
-package "Factory Module" {
-    component [TaskFactory] as TF
-    component [BugTaskFactory] as BTF
-    component [FeatureTaskFactory] as FTF
-    component [DocumentationTaskFactory] as DTF
-
-    BTF -up-|> TF
-    FTF -up-|> TF
-    DTF -up-|> TF
+package "Pattern layer" {
+    [RecipeFactory\nhierarchy]  as FACT
+    [SortStrategy\nhierarchy]   as STRAT
+    [RecipeStatus\nstate machine] as STATE
 }
 
-package "Strategy Module" {
-    component [PriorityStrategy] as PS
-    component [UrgentFirstStrategy] as UFS
-    component [DeadlineFirstStrategy] as DFS
-    component [SeverityFirstStrategy] as SFS
-
-    UFS -up-|> PS
-    DFS -up-|> PS
-    SFS -up-|> PS
+package "Product layer" {
+    [Recipe / AbstractRecipe\nand 3 concrete recipes] as PROD
 }
 
-package "Domain Model" {
-    component [Task] as T
-    component [AbstractTask] as AT
-    component [BugTask] as BT
-    component [FeatureTask] as FT
-    component [DocumentationTask] as DT
-    component [TaskStatus] as TS
+MAIN  --> MGR
+APP   --> MGR
+GUI   --> MGR
 
-    AT -up-|> T
-    BT -up-|> AT
-    FT -up-|> AT
-    DT -up-|> AT
-    AT --> TS
-}
+MGR --> FACT
+MGR --> STRAT
+MGR --> STATE
+MGR --> PROD
 
-' Dependencies
-UI --> MGR : uses
-MGR --> TF : creates tasks via
-MGR --> PS : delegates sorting to
-MGR --> T : manages
-TF --> T : produces
+FACT --> PROD
+STATE <-- PROD
+STRAT --> PROD
 
 @enduml

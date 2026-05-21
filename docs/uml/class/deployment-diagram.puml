@@ -1,48 +1,27 @@
-@startuml deployment-diagram
-!theme plain
-skinparam shadowing false
-skinparam defaultFontSize 11
-skinparam nodeBackgroundColor #FEFECE
+@startuml RecipeManagementDeploymentDiagram
+title Recipe Management System -- Deployment Diagram
 
-title Task Management System - Deployment Diagram\nLayered Architecture
+node "User's computer" as PC {
+    artifact "Operating System\n(Windows / macOS / Linux)" as OS
 
-node "JVM Runtime Environment" as JVM {
+    node "Java Virtual Machine (JDK 8+)" as JVM {
+        artifact "Main.class\n(scripted demo)"                  as MAIN
+        artifact "RecipeManagementApp.class\n(console driver)"  as APP
+        artifact "RecipeManagerGUI.class\n+ gui/*.class"        as GUI
 
-    node "Console UI Layer" as UILayer {
-        artifact "Main.java" as Main
-        note right of Main
-            Entry point for
-            user interaction
-        end note
-    }
-
-    node "Business Logic Layer" as BizLayer {
-        artifact "TaskManager" as TM
-        artifact "UrgentFirstStrategy" as UFS
-        artifact "DeadlineFirstStrategy" as DFS
-        artifact "SeverityFirstStrategy" as SFS
-    }
-
-    node "Domain Model Layer" as DomainLayer {
-        artifact "Task / AbstractTask" as Tasks
-        artifact "BugTask" as BT
-        artifact "FeatureTask" as FT
-        artifact "DocumentationTask" as DT
-        artifact "TaskFactory hierarchy" as Factories
-        artifact "TaskStatus" as TS
+        artifact "RecipeManager.class\n+ factories\n+ strategies\n+ recipes\n+ RecipeStatus" as ENG
     }
 }
 
-' Layer dependencies
-Main --> TM : invokes
-TM --> UFS : delegates
-TM --> DFS : delegates
-TM --> SFS : delegates
-TM --> Tasks : manages
-TM --> Factories : creates via
-Factories --> BT : produces
-Factories --> FT : produces
-Factories --> DT : produces
-Tasks --> TS : uses
+MAIN --> ENG
+APP --> ENG
+GUI --> ENG
+
+note right of JVM
+  Three optional entry points
+  share one engine.
+  No external services or
+  network dependencies.
+end note
 
 @enduml

@@ -1,0 +1,36 @@
+@startuml RecipeManagementUseCase
+title Recipe Management System -- Use Case Diagram
+left to right direction
+
+actor "Cook (User)" as Cook
+
+rectangle "Recipe Management System" {
+    usecase "Create a recipe"           as UC1
+    usecase "View all recipes"          as UC2
+    usecase "View ordered recipes"      as UC3
+    usecase "Change sort strategy"      as UC4
+    usecase "Transition recipe status"  as UC5
+    usecase "Filter recipes by status"  as UC6
+    usecase "View recipe details"       as UC7
+    usecase "Show summary"              as UC8
+    usecase "Remove a recipe"           as UC9
+    usecase "Load demo scenario"        as UC10
+}
+
+Cook --> UC1
+Cook --> UC2
+Cook --> UC3
+Cook --> UC4
+Cook --> UC5
+Cook --> UC6
+Cook --> UC7
+Cook --> UC8
+Cook --> UC9
+Cook --> UC10
+
+note bottom of UC1 : Uses Factory Method\nto build the right\nconcrete recipe.
+note bottom of UC3 : Uses Strategy --\ndelegates ordering to\nthe current strategy.
+note bottom of UC4 : Strategy swap --\ntakes effect on the\nnext ordered query.
+note bottom of UC5 : Validated by\nRecipeStatus state machine.
+
+@enduml

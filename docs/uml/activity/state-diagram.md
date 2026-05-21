@@ -1,31 +1,38 @@
-# State Diagram
+# State Diagram -- Recipe lifecycle
 
-This diagram shows the valid **status transitions** for a Task in the system. Tasks start in OPEN, move through IN_PROGRESS and REVIEW, and end in DONE. Tasks can be BLOCKED from OPEN or IN_PROGRESS and can only return to OPEN when unblocked.
+The five `RecipeStatus` values and the nine allowed transitions
+between them. The PlantUML source is in
+[recipe-state.puml](recipe-state.puml).
 
 ```mermaid
 stateDiagram-v2
-    [*] --> OPEN : Task created
+    [*] --> DRAFT
 
-    OPEN --> IN_PROGRESS : assign
-    OPEN --> BLOCKED : block
+    DRAFT --> TESTING : start testing
+    DRAFT --> PAUSED  : pause
 
-    IN_PROGRESS --> REVIEW : submit for review
-    IN_PROGRESS --> BLOCKED : block
+    TESTING --> APPROVED : approve
+    TESTING --> PAUSED   : pause
 
-    REVIEW --> DONE : approve
-    REVIEW --> IN_PROGRESS : reject / request changes
+    APPROVED --> COOKED  : mark cooked
+    APPROVED --> TESTING : revise
 
-    BLOCKED --> OPEN : unblock
+    COOKED --> [*]
 
-    DONE --> [*]
-
-    note right of DONE
-        Final state:
-        Task is complete
-    end note
-
-    note left of BLOCKED
-        Blocked tasks can
-        only return to OPEN
-    end note
+    PAUSED --> DRAFT : resume
 ```
+
+## Transition table
+
+| From | Allowed to | Disallowed |
+|---|---|---|
+| `DRAFT` | `TESTING`, `PAUSED` | anything else |
+| `TESTING` | `APPROVED`, `PAUSED` | anything else |
+| `APPROVED` | `COOKED`, `TESTING` | anything else |
+| `COOKED` | (terminal) | every other state |
+| `PAUSED` | `DRAFT` | anything else |
+
+Any disallowed transition throws `IllegalArgumentException` with the
+exact message `"Cannot transition from X to Y"`. The state machine is
+enforced inside `AbstractRecipe.setStatus(...)` via the enum method
+`RecipeStatus.canTransitionTo(...)`.

@@ -1,307 +1,309 @@
-# Task Management System
+# Recipe Management System
 
-**SEN3006 — Software Architecture Project**
+A small Java application that demonstrates two classic object-oriented design
+patterns — **Factory Method** and **Strategy** — by managing a personal
+collection of cooking recipes (desserts, main courses, appetizers). Built for
+the **SEN3006 — Software Architecture** course.
 
-A task management system built in pure Java demonstrating two design patterns: **Factory Method** (Creational) and **Strategy** (Behavioral). The system manages different types of software development tasks (bugs, features, documentation) with swappable prioritization algorithms.
-
-**Submission Deadline:** June 05, 2026 | **Last Updated:** March 19, 2026
+The whole project is **pure Java with zero external libraries**. If you have a
+JDK installed, you can compile and run everything from a terminal in under a
+minute.
 
 ---
 
-## Quick Start (GUI demo) — easiest
+## Contents
 
-The fastest way to see the project running:
+- [What you need on your computer](#what-you-need-on-your-computer)
+- [Quick start (easiest way to see the project)](#quick-start-easiest-way-to-see-the-project)
+- [The three ways to run the project](#the-three-ways-to-run-the-project)
+- [Project structure](#project-structure)
+- [The two design patterns](#the-two-design-patterns)
+- [Recipe lifecycle (state machine)](#recipe-lifecycle-state-machine)
+- [Documentation index](#documentation-index)
+- [Build everything from source](#build-everything-from-source)
+- [Troubleshooting](#troubleshooting)
 
-1. Unzip `SEN3006_Task_Management_System.zip` (or clone the repo).
-2. Double-click **`TaskManagerGUI.jar`** (or **`run-gui.bat`** on Windows / **`run-gui.sh`** on Mac/Linux).
-3. The Task Manager window opens. Use the **Demo** menu to load preset scenarios, or fill in the form to add your own. Switch the **Sort by** dropdown to see the Strategy pattern reorder the table live.
+---
 
-Requires Java 8 or newer. If double-click does not work on your OS, run from a terminal:
+## What you need on your computer
+
+| Requirement | Minimum version | How to check |
+|---|---|---|
+| **Java JDK** | 8 (Java 1.8) or newer | Open a terminal and run `java -version` |
+| **Java compiler** | `javac` from the same JDK | Run `javac -version` |
+| Operating system | Windows, macOS, or Linux | Any of the three works |
+| Disk space | About 2 MB | The whole repository is small |
+
+That's it. No build tools (Maven, Gradle), no package managers, no
+internet connection, no accounts.
+
+### Don't have a JDK yet?
+
+Pick one of these free distributions, install it, and reopen your terminal:
+
+- [Eclipse Temurin (recommended)](https://adoptium.net/temurin/releases/)
+- [Microsoft Build of OpenJDK](https://learn.microsoft.com/en-us/java/openjdk/download)
+- Whatever your operating-system package manager ships (e.g. `apt install
+  default-jdk` on Ubuntu, `brew install openjdk` on macOS).
+
+After installation, `java -version` should print something like
+`openjdk version "21.0.x"`.
+
+---
+
+## Quick start (easiest way to see the project)
+
+The repository ships a ready-to-run GUI as a `.jar` file. Anyone with a JDK
+can launch it with a single command:
 
 ```sh
-java -jar TaskManagerGUI.jar
+java -jar RecipeManagerGUI.jar
 ```
+
+On Windows you can also **double-click `run-gui.bat`** (macOS / Linux:
+run `./run-gui.sh`). A window titled *Recipe Manager* opens. Use the menu
+**Demos -> Load Strategy demo** to populate it with example recipes, then
+switch the *Sort by* dropdown to watch the Strategy pattern re-order the
+table in real time.
 
 ---
 
-## Quick Start
+## The three ways to run the project
 
-Pure Java, zero dependencies. Three commands and you're running.
+| # | Mode | Command | What it shows |
+|---|---|---|---|
+| 1 | **Graphical UI** | `java -jar RecipeManagerGUI.jar` | A window with a recipe form, table, sort/filter, status transitions |
+| 2 | **Interactive console** | `java -cp bin RecipeManagementApp` | A menu-driven console app (create, list, transition, sort) |
+| 3 | **Automated tests** | `java -cp bin Main` | A scripted 6-section demo with `[PASS]` markers |
 
-### Prerequisites
+Mode 1 requires only the JDK and the bundled JAR. Modes 2 and 3 also need a
+compiled `bin/` directory — see [Build everything from source](#build-everything-from-source).
 
-- **JDK 8 or later** — verify with `java -version` and `javac -version`. If missing, install [Eclipse Temurin](https://adoptium.net/) (cross-platform), or `winget install Microsoft.OpenJDK.21` on Windows, `brew install openjdk` on macOS, or `sudo apt install default-jdk` on Linux.
-- **Any terminal** — Windows CMD, PowerShell, Git Bash, macOS Terminal, or Linux shells. The commands below are identical in all of them.
+---
 
-### Step 1: Compile
+## Project structure
 
-From the project root, run:
+```
+.
+├── README.md                       <- you are here
+├── SUBMISSION_README.md            <- how to package the deliverable for submission
+├── RecipeManagerGUI.jar            <- runnable Swing GUI (Quick start)
+├── run-gui.bat / run-gui.sh        <- double-click launchers for the JAR
+├── build-jar.bat / build-jar.sh    <- rebuild the JAR from source
+├── guide.md                        <- assignment description from the professor
+├── src/
+│   └── main/
+│       └── java/                   <- 17 Java source files
+│           ├── Recipe.java                  (Product interface)
+│           ├── AbstractRecipe.java          (Abstract base class)
+│           ├── DessertRecipe.java           (Concrete recipe -- desserts)
+│           ├── MainCourseRecipe.java        (Concrete recipe -- main courses)
+│           ├── AppetizerRecipe.java         (Concrete recipe -- appetizers)
+│           ├── RecipeStatus.java            (Lifecycle state machine)
+│           ├── RecipeFactory.java           (Abstract creator)
+│           ├── DessertRecipeFactory.java
+│           ├── MainCourseRecipeFactory.java
+│           ├── AppetizerRecipeFactory.java
+│           ├── SortStrategy.java            (Strategy interface)
+│           ├── UrgentFirstStrategy.java
+│           ├── DeadlineFirstStrategy.java
+│           ├── DessertFirstStrategy.java
+│           ├── RecipeManager.java           (Coordinator)
+│           ├── Main.java                    (Automated test demo)
+│           ├── RecipeManagementApp.java     (Interactive console app)
+│           └── gui/                         (Swing GUI, 5 files)
+│               ├── RecipeManagerGUI.java
+│               ├── RecipeFormPanel.java
+│               ├── RecipeTablePanel.java
+│               ├── RecipeTableModel.java
+│               └── DemoScenarios.java
+└── docs/
+    ├── report/report.md            <- full 9-section project report
+    ├── design/                     <- design spec, study guide, test docs,
+    │                                  presentation outline
+    └── uml/                        <- class, sequence, state, activity,
+                                       component, deployment, use-case diagrams
+```
+
+There are no hidden helpers, no generated code, no transitive dependencies.
+
+---
+
+## The two design patterns
+
+### 1. Factory Method (Creational)
+
+**Problem.** A recipe can be a dessert, a main course or an appetizer -- each
+needs its own type-specific data (sweetness, cooking time, serving
+temperature). Hard-coding `if (type == "DESSERT") new DessertRecipe(...)`
+everywhere couples the rest of the system to every recipe class, and every
+new type requires editing those branches.
+
+**Solution.** An abstract `RecipeFactory` declares `createRecipe(...)`.
+Three concrete factories (`DessertRecipeFactory`,
+`MainCourseRecipeFactory`, `AppetizerRecipeFactory`) each instantiate one
+concrete recipe type. The `RecipeManager` registers factories by string
+key, so adding a fourth type (say, *DrinkRecipe*) is a one-class change.
+
+```
+RecipeFactory (abstract)
+├── DessertRecipeFactory     -> creates DessertRecipe
+├── MainCourseRecipeFactory  -> creates MainCourseRecipe
+└── AppetizerRecipeFactory   -> creates AppetizerRecipe
+```
+
+### 2. Strategy (Behavioral)
+
+**Problem.** A cook plans the same recipe list in different ways depending
+on context -- "show me the most urgent dishes", "show me what needs cooking
+soonest", "put desserts at the top because they need lead time".
+Hard-coding every ordering inside the manager makes adding a new ordering
+risky.
+
+**Solution.** A `SortStrategy` interface has a single `sort(List<Recipe>)`
+method. Three concrete strategies implement different algorithms:
+
+```
+SortStrategy (interface)
+├── UrgentFirstStrategy    -> sort by priority descending (5 -> 1)
+├── DeadlineFirstStrategy  -> sort by cook-by date ascending, undated last
+└── DessertFirstStrategy   -> desserts first by sweetness, then others by priority
+```
+
+The `RecipeManager` keeps a current strategy and re-orders on demand.
+Swapping strategy at runtime -- including a brand-new strategy written on
+the spot -- requires zero changes to the manager.
+
+Both patterns work through the same `RecipeManager`, which acts as the
+**Client** for Factory Method and the **Context** for Strategy.
+
+---
+
+## Recipe lifecycle (state machine)
+
+Recipes move through a small workflow that mirrors how a cook actually
+builds and uses a recipe:
+
+```
+DRAFT  ---->  TESTING  ---->  APPROVED  ---->  COOKED   (terminal)
+  |             |               |
+  v             v               v
+PAUSED  <-- PAUSED            TESTING   (back-step for revisions)
+  |
+  v
+DRAFT     (resume after an obstacle is cleared)
+```
+
+Invalid transitions (for example `DRAFT -> COOKED`) throw an
+`IllegalArgumentException`, so the data can never end up in an impossible
+state.
+
+---
+
+## Documentation index
+
+| Document | What's inside |
+|---|---|
+| [docs/report/report.md](docs/report/report.md) | Full 9-section project report (introduction, problem, patterns, UML, implementation, testing, evaluation, conclusion, references) |
+| [docs/design/design-spec.md](docs/design/design-spec.md) | Class signatures, design rationale, SOLID mapping |
+| [docs/design/test-documentation.md](docs/design/test-documentation.md) | What each test in `Main.java` proves and how to run it |
+| [docs/design/study-guide.md](docs/design/study-guide.md) | Presentation prep: every class explained, Q&A cheat-sheet |
+| [docs/design/presentation-outline.md](docs/design/presentation-outline.md) | Slide-by-slide plan with speaker notes |
+| [docs/uml/](docs/uml/) | Class, sequence, state, activity, component, deployment, use-case diagrams (PlantUML + Mermaid renders) |
+| [guide.md](guide.md) | The original assignment description |
+
+---
+
+## Build everything from source
+
+If you only have the source tree (no compiled `bin/` and no JAR), this is
+the full rebuild:
+
+### Step 1 -- Compile
+
+From the project root:
 
 ```sh
 javac -d bin src/main/java/*.java src/main/java/gui/*.java
 ```
 
-This creates a `bin/` folder and compiles all source files (engine + GUI). No output means success.
+Success looks like silence -- there is no output, and a `bin/` directory
+appears with `.class` files inside.
 
-### Step 2: Run the Automated Tests
+### Step 2 -- Run the automated tests
 
 ```sh
 java -cp bin Main
 ```
 
-Look for `ALL TESTS PASSED` at the bottom — that confirms everything works.
+You should see six test sections, each ending with `[PASS]`, and a final
+`ALL TESTS PASSED` banner.
 
-### Step 3: Run the Interactive Application
-
-```sh
-java -cp bin TaskManagementApp
-```
-
-This launches the **interactive task management system** with a menu:
-
-```
-  MAIN MENU
-  1. Create a new task          ← Uses Factory Method pattern
-  2. View all tasks
-  3. View tasks (sorted)        ← Uses Strategy pattern
-  4. Change sorting strategy    ← Swap strategy at runtime
-  5. Change task status         ← State machine transitions
-  6. Filter tasks by status
-  7. View task details
-  8. Remove a task
-  9. View summary
-  0. Exit
-```
-
-**Quick demo to try:**
-1. Type `1` → Enter → `BUG` → Enter → type a title → Enter → type a description → Enter → `5` → Enter → `n` → Enter
-2. Type `1` → Enter → `FEATURE` → Enter → type a title → Enter → type a description → Enter → `2` → Enter → `n` → Enter
-3. Type `3` → Enter → see tasks sorted by priority (highest first)
-4. Type `4` → Enter → `2` → Enter → switch to DeadlineFirst sorting
-5. Type `5` → Enter → pick a task ID → Enter → `IN_PROGRESS` → Enter → move a task forward
-6. Type `0` → Enter → exit
-
-> **Troubleshooting:** see [docs/design/test-documentation.md](docs/design/test-documentation.md#troubleshooting) for fixes to common issues (`javac` not found, wrong folder, garbled output, etc.).
-
----
-
-## Project Structure
-
-```
-├── src/
-│   └── main/
-│       └── java/                    ← All 17 Java source files
-│           ├── Task.java                 (Product interface)
-│           ├── AbstractTask.java         (Abstract base class)
-│           ├── BugTask.java              (Concrete task — bugs)
-│           ├── FeatureTask.java          (Concrete task — features)
-│           ├── DocumentationTask.java    (Concrete task — docs)
-│           ├── TaskStatus.java           (Lifecycle state machine)
-│           ├── TaskFactory.java          (Abstract creator)
-│           ├── BugTaskFactory.java       (Creates bug tasks)
-│           ├── FeatureTaskFactory.java   (Creates feature tasks)
-│           ├── DocumentationTaskFactory.java (Creates doc tasks)
-│           ├── PriorityStrategy.java     (Strategy interface)
-│           ├── UrgentFirstStrategy.java  (Sort by priority)
-│           ├── DeadlineFirstStrategy.java (Sort by deadline)
-│           ├── SeverityFirstStrategy.java (Sort bugs by severity)
-│           ├── TaskManager.java          (Central coordinator)
-│           ├── TaskManagementApp.java    (Interactive console application)
-│           └── Main.java                 (Automated tests — 6 test sections)
-│
-├── docs/
-│   ├── report/
-│   │   └── report.md                ← Full project report (10-14 pages)
-│   │
-│   ├── design/
-│   │   ├── design-spec.md           ← System design specification
-│   │   ├── test-documentation.md    ← How to run and verify tests
-│   │   ├── study-guide.md           ← Presentation preparation guide
-│   │   └── presentation-outline.md  ← Slide-by-slide presentation plan
-│   │
-│   └── uml/                        ← All UML diagrams
-│       ├── class/
-│       │   ├── task-management-class.puml    ← Class Diagram (PlantUML)
-│       │   ├── class-diagram.md             ← Class Diagram (visual, Mermaid)
-│       │   ├── component-diagram.puml       ← Component Diagram (PlantUML)
-│       │   ├── component-diagram.md         ← Component Diagram (visual)
-│       │   ├── deployment-diagram.puml      ← Deployment Diagram (PlantUML)
-│       │   └── deployment-diagram.md        ← Deployment Diagram (visual)
-│       ├── sequence/
-│       │   ├── task-creation-sequence.puml   ← Sequence Diagram (PlantUML)
-│       │   └── sequence-diagram.md          ← Sequence Diagram (visual)
-│       ├── usecase/
-│       │   ├── task-management-usecase.puml  ← Use Case Diagram (PlantUML)
-│       │   └── usecase-diagram.md           ← Use Case Diagram (visual)
-│       └── activity/
-│           ├── task-lifecycle-activity.puml  ← Activity Diagram (PlantUML)
-│           ├── activity-diagram.md          ← Activity Diagram (visual)
-│           ├── task-state.puml              ← State Diagram (PlantUML)
-│           └── state-diagram.md             ← State Diagram (visual)
-│
-└── guide.md                         ← Original project assignment
-```
-
----
-
-## Design Patterns Used
-
-### 1. Factory Method (Creational Pattern)
-
-**Problem:** Creating different task types (Bug, Feature, Documentation) without hardcoding `new BugTask()` everywhere.
-
-**Solution:** An abstract `TaskFactory` defines a `createTask()` method. Each concrete factory (`BugTaskFactory`, `FeatureTaskFactory`, `DocumentationTaskFactory`) overrides it to produce the right task type.
-
-**Benefit:** To add a new task type, you create two new files. Zero changes to existing code.
-
-```
-TaskFactory (abstract)
-├── BugTaskFactory         → creates BugTask
-├── FeatureTaskFactory     → creates FeatureTask
-└── DocumentationTaskFactory → creates DocumentationTask
-```
-
-### 2. Strategy (Behavioral Pattern)
-
-**Problem:** Tasks need to be sorted by different criteria (priority, deadline, severity) depending on the situation.
-
-**Solution:** A `PriorityStrategy` interface defines a `sort()` method. Three concrete strategies implement different sorting algorithms. The `TaskManager` can swap strategies at runtime.
-
-**Benefit:** To add a new sorting method, you create one new file. Zero changes to existing code.
-
-```
-PriorityStrategy (interface)
-├── UrgentFirstStrategy     → sorts by priority (5 highest → 1 lowest)
-├── DeadlineFirstStrategy   → sorts by deadline (earliest first)
-└── SeverityFirstStrategy   → sorts bugs by severity, then others by priority
-```
-
----
-
-## UML Diagrams
-
-All diagrams are available in two formats:
-- **`.puml` files** — PlantUML source code (version-controlled, precise)
-- **`.md` files** — Mermaid diagrams (viewable on GitHub, renders visually)
-
-### Mandatory Diagrams (required by assignment)
-
-| Diagram | Description | View |
-|---|---|---|
-| Class Diagram | All classes, interfaces, inheritance, and associations | [View](docs/uml/class/class-diagram.md) |
-| Sequence Diagram | Task creation and prioritization flow | [View](docs/uml/sequence/sequence-diagram.md) |
-| Use Case Diagram | All system features and user interactions | [View](docs/uml/usecase/usecase-diagram.md) |
-
-### Optional Diagrams (recommended by assignment)
-
-| Diagram | Description | View |
-|---|---|---|
-| Activity Diagram | Task lifecycle workflow from creation to completion | [View](docs/uml/activity/activity-diagram.md) |
-| State Diagram | TaskStatus transitions (OPEN → IN_PROGRESS → REVIEW → DONE) | [View](docs/uml/activity/state-diagram.md) |
-| Component Diagram | System modules and their dependencies | [View](docs/uml/class/component-diagram.md) |
-| Deployment Diagram | Three-layer JVM architecture | [View](docs/uml/class/deployment-diagram.md) |
-
----
-
-## Three Ways to Use the System
-
-| Program | Command | Purpose |
-|---|---|---|
-| **Graphical UI** | `java -jar TaskManagerGUI.jar` | Click around — visual demo of all patterns, easiest for showing the project |
-| **Interactive App** | `java -cp bin TaskManagementApp` | Console menu — create tasks, sort them, change status, view details |
-| **Automated Tests** | `java -cp bin Main` | Verify the system — runs 6 test sections, all should show `[PASS]` |
-
-## Automated Test Details
-
-The `Main.java` file contains 6 test sections that verify the system works correctly:
-
-| Test | What It Proves |
-|---|---|
-| Test 1: Factory Method Demo | Each factory creates the correct task type polymorphically |
-| Test 2: Strategy Demo | Same task list sorted 3 different ways by swapping strategy |
-| Test 3: Lifecycle Demo | Valid state transitions succeed, invalid ones are blocked |
-| Test 4: Integration Demo | Full workflow — create, filter, transition, summarize |
-| Test 5: SOLID Demo | All 5 SOLID principles demonstrated with code |
-| Test 6: Edge Cases | Invalid priority, null title, unknown type, missing ID, null strategy |
-
-Every test prints `[PASS]` when successful. The program ends with `ALL TESTS PASSED`.
-
-For detailed test documentation, see [docs/design/test-documentation.md](docs/design/test-documentation.md).
-
----
-
-## SOLID Principles
-
-| Principle | How It's Applied |
-|---|---|
-| **S**ingle Responsibility | Each class has one job (Factory creates, Strategy sorts, Manager coordinates) |
-| **O**pen/Closed | New task types or strategies added via new classes, no existing code modified |
-| **L**iskov Substitution | All factories work through `TaskFactory` reference, all strategies through `PriorityStrategy` |
-| **I**nterface Segregation | `PriorityStrategy` has one method; type-specific methods only on concrete classes |
-| **D**ependency Inversion | `TaskManager` depends on interfaces (`Task`, `PriorityStrategy`), not concrete classes |
-
----
-
-## Task Lifecycle
-
-Tasks follow a state machine with 5 states:
-
-```
-OPEN ──────→ IN_PROGRESS ──────→ REVIEW ──────→ DONE (final)
-  │               │                 │
-  └──→ BLOCKED    └──→ BLOCKED      └──→ IN_PROGRESS (rejected)
-         │
-         └──→ OPEN (unblocked)
-```
-
-Invalid transitions (e.g., OPEN → DONE) throw an `IllegalArgumentException`.
-
----
-
-## Documentation
-
-| Document | Purpose |
-|---|---|
-| [Project Report](docs/report/report.md) | Full 10-14 page report with all 9 required sections |
-| [Test Documentation](docs/design/test-documentation.md) | How to run tests, what each test does, edge cases |
-| [Study Guide](docs/design/study-guide.md) | Presentation prep — every class explained, Q&A cheat sheet |
-| [Presentation Outline](docs/design/presentation-outline.md) | Slide-by-slide plan with speaker notes |
-| [Design Specification](docs/design/design-spec.md) | Technical design with all class signatures |
-| [Assignment Guide](guide.md) | Original project requirements from the professor |
-
----
-
-## Tools and Software
-
-| Tool | Purpose | How to Install |
-|---|---|---|
-| Java JDK 21 | Compile and run Java code | `winget install Microsoft.OpenJDK.21` or [adoptium.net](https://adoptium.net/) |
-| VS Code | Code editor | [code.visualstudio.com](https://code.visualstudio.com/) |
-| Java Extension Pack | Java IntelliSense, debugging, testing in VS Code | Search "Java Extension Pack" in VS Code extensions |
-| PlantUML Extension | Preview `.puml` diagram files in VS Code | Search "PlantUML" in VS Code extensions |
-| Draw.io Extension | Visual diagram editor inside VS Code | Search "Draw.io" in VS Code extensions |
-| Git | Version control | [git-scm.com](https://git-scm.com/) |
-
-### How to View UML Diagrams
-
-**Option 1 — GitHub (easiest):** Open the `.md` diagram files on GitHub — Mermaid diagrams render automatically.
-
-**Option 2 — VS Code with PlantUML:**
-1. Install the PlantUML extension
-2. Open any `.puml` file
-3. Press `Alt+D` to preview the diagram
-
-**Option 3 — Online:** Copy the `.puml` content and paste at [plantuml.com](https://www.plantuml.com/plantuml/uml/)
-
----
-
-## Building from source
-
-To rebuild `TaskManagerGUI.jar` after editing source files:
+### Step 3 -- Run the interactive console app
 
 ```sh
-bash build-jar.sh    # Mac/Linux/Git Bash
-build-jar.bat        # Windows cmd
+java -cp bin RecipeManagementApp
 ```
 
-This recompiles all classes (engine + GUI) and packages them with a `Main-Class: TaskManagerGUI` manifest. The resulting JAR is the one shipped to the professor.
+Pick options from the menu to create recipes, change the sort strategy,
+move recipes through the lifecycle, and read summaries.
+
+### Step 4 -- Rebuild the GUI JAR (optional)
+
+If you want a fresh `RecipeManagerGUI.jar`:
+
+- **Windows:** double-click `build-jar.bat` (or run it from a terminal).
+- **macOS / Linux:** run `./build-jar.sh`.
+
+The script wraps three lines:
+
+```sh
+rm -rf bin
+javac -d bin src/main/java/*.java src/main/java/gui/*.java
+(cd bin && jar cfe ../RecipeManagerGUI.jar RecipeManagerGUI *.class)
+```
+
+Then launch with:
+
+```sh
+java -jar RecipeManagerGUI.jar
+```
+
+---
+
+## Troubleshooting
+
+**`java: command not found` / `javac: command not found`** -- a JDK is not
+installed, or it is installed but the executables are not on your `PATH`.
+Reinstall using one of the links in
+[What you need on your computer](#what-you-need-on-your-computer) and
+reopen your terminal.
+
+**`Error: Could not find or load main class Main`** -- you ran the command
+from the wrong directory, or you have not compiled yet. Make sure you are
+in the project root (the folder containing `README.md`) and that a `bin/`
+directory exists with `Main.class` inside.
+
+**`Unsupported class file major version`** -- the JAR was compiled with a
+newer JDK than the one you are running. Either install a newer JDK or
+recompile from source against your installed JDK using
+`javac -d bin src/main/java/*.java src/main/java/gui/*.java`.
+
+**The GUI window opens but looks blank** -- drag a corner to resize the
+window. Some window managers initialise the layout slightly differently on
+the first paint.
+
+**`error: unmappable character (0x...) for encoding ...` during compile** --
+add `-encoding UTF-8` to the `javac` command:
+
+```sh
+javac -encoding UTF-8 -d bin src/main/java/*.java src/main/java/gui/*.java
+```
+
+---
+
+## License and authorship
+
+This is a student project submitted for SEN3006. All source code and
+documentation in this repository are original work produced for that
+course.

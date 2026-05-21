@@ -1,63 +1,44 @@
 # Sequence Diagram
 
-This diagram illustrates the runtime interactions for **creating a Bug task** and **prioritizing tasks** using the Deadline-First strategy. It shows how the Project Manager's request flows through Main, TaskManager, the factory registry, BugTaskFactory, and the strategy object.
+Two flows through the system. The PlantUML source is in
+[recipe-creation-sequence.puml](recipe-creation-sequence.puml).
 
 ```mermaid
 sequenceDiagram
-    actor PM as Project Manager
-    participant Main
-    participant TM as TaskManager
-    participant Registry as factoryRegistry<br/>Map~String,TaskFactory~
-    participant BTF as BugTaskFactory
-    participant BT as BugTask
-    participant DFS as DeadlineFirstStrategy
+    actor User
+    participant RM as RecipeManager
+    participant Reg as factoryRegistry
+    participant DF as DessertRecipeFactory
+    participant DR as DessertRecipe
+    participant ST as currentStrategy
 
-    rect rgb(240, 248, 255)
-        Note over PM, BT: Task Creation
-        PM->>Main: createTask("BUG", "Fix login", "Login fails", 1)
-        activate Main
-        Main->>TM: createTask("BUG", "Fix login", "Login fails", 1)
-        activate TM
-        TM->>Registry: get("BUG")
-        activate Registry
-        Registry-->>TM: bugTaskFactory
-        deactivate Registry
-        TM->>BTF: createTask("Fix login", "Login fails", 1)
-        activate BTF
-        BTF->>BT: new BugTask("Fix login", "Login fails", 1, "MEDIUM", "")
-        activate BT
-        BT-->>BTF: bugTask
-        deactivate BT
-        BTF-->>TM: bugTask
-        deactivate BTF
-        TM->>TM: tasks.add(bugTask)
-        TM-->>Main: bugTask
-        deactivate TM
-        Main-->>PM: Task created successfully
-        deactivate Main
-    end
+    Note over User,RM: Create a recipe (Factory Method)
 
-    rect rgb(245, 255, 245)
-        Note over PM, DFS: Prioritization
-        PM->>Main: setPriorityStrategy(new DeadlineFirstStrategy())
-        activate Main
-        Main->>TM: setPriorityStrategy(deadlineFirstStrategy)
-        activate TM
-        TM->>TM: currentStrategy = deadlineFirstStrategy
-        TM-->>Main: void
-        deactivate TM
+    User->>RM: createRecipe("DESSERT", "Tiramisu", "...", 4)
+    RM->>Reg: get("DESSERT")
+    Reg-->>RM: DessertRecipeFactory
+    RM->>DF: createRecipe("Tiramisu", "...", 4)
+    DF->>DR: new DessertRecipe(...)
+    DR-->>DF: recipe
+    DF-->>RM: Recipe
+    RM->>RM: recipes.add(recipe)
+    RM-->>User: Recipe
 
-        PM->>Main: getPrioritizedTasks()
-        Main->>TM: getPrioritizedTasks()
-        activate TM
-        TM->>DFS: sort(tasks)
-        activate DFS
-        DFS->>DFS: sort by deadline (earliest first)
-        DFS-->>TM: sortedTasks
-        deactivate DFS
-        TM-->>Main: sortedTasks
-        deactivate TM
-        Main-->>PM: Display prioritized task list
-        deactivate Main
-    end
+    Note over User,RM: Order the recipe list (Strategy)
+
+    User->>RM: setSortStrategy(new DeadlineFirstStrategy())
+    User->>RM: getOrderedRecipes()
+    RM->>ST: sort(recipes)
+    ST-->>RM: sorted copy
+    RM-->>User: List<Recipe>
 ```
+
+## What to look at
+
+- **Factory Method in action.** Notice that the user only passes the
+  string `"DESSERT"`. The manager looks up the right factory and the
+  factory does the `new DessertRecipe(...)`. The user never names the
+  concrete class.
+- **Strategy in action.** Swapping `currentStrategy` is a single
+  setter call. The next call to `getOrderedRecipes()` runs through the
+  newly-installed strategy with no further plumbing.

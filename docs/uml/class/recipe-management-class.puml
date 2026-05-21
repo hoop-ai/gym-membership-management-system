@@ -1,0 +1,146 @@
+@startuml RecipeManagementClassDiagram
+title Recipe Management System -- Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontName Helvetica
+skinparam classBorderColor #4A2C20
+skinparam classBackgroundColor #FFF8E7
+
+interface Recipe {
+    +getId(): int
+    +getTitle(): String
+    +getDescription(): String
+    +getStatus(): RecipeStatus
+    +setStatus(status: RecipeStatus): void
+    +getPriority(): int
+    +getDeadline(): LocalDate
+    +setDeadline(deadline: LocalDate): void
+    +getCreatedAt(): LocalDateTime
+    +getType(): String
+}
+
+abstract class AbstractRecipe {
+    -id: int
+    -title: String
+    -description: String
+    -status: RecipeStatus
+    -priority: int
+    -deadline: LocalDate
+    -createdAt: LocalDateTime
+    +AbstractRecipe(title, description, priority)
+    +{abstract} getType(): String
+}
+
+class DessertRecipe {
+    -sweetness: String
+    -preparationNotes: String
+    +getSweetness(): String
+    +setSweetness(s: String): void
+    +getPreparationNotes(): String
+    +getType(): String
+}
+
+class MainCourseRecipe {
+    -cookingTimeMinutes: int
+    -satisfactionRating: int
+    +getCookingTimeMinutes(): int
+    +getSatisfactionRating(): int
+    +getType(): String
+}
+
+class AppetizerRecipe {
+    -serveTemperature: String
+    -occasion: String
+    +getServeTemperature(): String
+    +getOccasion(): String
+    +getType(): String
+}
+
+enum RecipeStatus {
+    DRAFT
+    TESTING
+    APPROVED
+    COOKED
+    PAUSED
+    +canTransitionTo(next): boolean
+}
+
+abstract class RecipeFactory {
+    +{abstract} createRecipe(title, description, priority): Recipe
+    +createRecipeWithDeadline(title, description, priority, cookBy): Recipe
+}
+
+class DessertRecipeFactory {
+    +createRecipe(...): Recipe
+    +createDessertRecipe(...): DessertRecipe
+}
+
+class MainCourseRecipeFactory {
+    +createRecipe(...): Recipe
+    +createMainCourseRecipe(...): MainCourseRecipe
+}
+
+class AppetizerRecipeFactory {
+    +createRecipe(...): Recipe
+    +createAppetizerRecipe(...): AppetizerRecipe
+}
+
+interface SortStrategy {
+    +sort(recipes: List<Recipe>): List<Recipe>
+}
+
+class UrgentFirstStrategy {
+    +sort(recipes): List<Recipe>
+}
+
+class DeadlineFirstStrategy {
+    +sort(recipes): List<Recipe>
+}
+
+class DessertFirstStrategy {
+    +sort(recipes): List<Recipe>
+    -getSweetnessRank(s): int
+}
+
+class RecipeManager {
+    -recipes: List<Recipe>
+    -currentStrategy: SortStrategy
+    -factoryRegistry: Map<String, RecipeFactory>
+    +createRecipe(type, title, desc, prio): Recipe
+    +registerFactory(type, factory): void
+    +getAllRecipes(): List<Recipe>
+    +getOrderedRecipes(): List<Recipe>
+    +getRecipesByStatus(status): List<Recipe>
+    +transitionRecipe(id, status): void
+    +setSortStrategy(s: SortStrategy): void
+    +removeRecipe(id): void
+}
+
+Recipe <|.. AbstractRecipe
+AbstractRecipe <|-- DessertRecipe
+AbstractRecipe <|-- MainCourseRecipe
+AbstractRecipe <|-- AppetizerRecipe
+AbstractRecipe ..> RecipeStatus
+
+RecipeFactory <|-- DessertRecipeFactory
+RecipeFactory <|-- MainCourseRecipeFactory
+RecipeFactory <|-- AppetizerRecipeFactory
+DessertRecipeFactory ..> DessertRecipe : creates
+MainCourseRecipeFactory ..> MainCourseRecipe : creates
+AppetizerRecipeFactory ..> AppetizerRecipe : creates
+
+SortStrategy <|.. UrgentFirstStrategy
+SortStrategy <|.. DeadlineFirstStrategy
+SortStrategy <|.. DessertFirstStrategy
+DessertFirstStrategy ..> DessertRecipe : inspects type
+
+RecipeManager o--> Recipe : holds many
+RecipeManager o--> SortStrategy : holds one
+RecipeManager o--> RecipeFactory : registers
+
+note bottom of RecipeManager
+  Client of Factory Method
+  Context  of Strategy
+end note
+
+@enduml

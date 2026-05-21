@@ -1,0 +1,22 @@
+@startuml RecipeStateDiagram
+title Recipe lifecycle -- State Diagram
+
+[*] --> DRAFT
+
+DRAFT --> TESTING : start testing
+DRAFT --> PAUSED  : pause
+
+TESTING --> APPROVED : approve
+TESTING --> PAUSED   : pause
+
+APPROVED --> COOKED  : mark cooked
+APPROVED --> TESTING : revise
+
+COOKED --> [*]
+
+PAUSED --> DRAFT : resume
+
+note right of COOKED : terminal\nstate
+note left of PAUSED : single resume\ndestination\n(DRAFT only)
+
+@enduml

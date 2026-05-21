@@ -1,143 +1,131 @@
 # Class Diagram
 
-This diagram shows the full class hierarchy of the Task Management System, including the **Domain Model** (Task interface, AbstractTask, and concrete task types), the **Factory Module** (Factory Method pattern for task creation), the **Strategy Module** (Strategy pattern for prioritization), and the **TaskManager** that orchestrates everything.
+Recipe Management System -- 17 classes organised in three layers
+(product / pattern / coordination). The PlantUML source is in
+[recipe-management-class.puml](recipe-management-class.puml).
 
 ```mermaid
 classDiagram
-    direction TB
-
-    class TaskStatus {
-        <<enumeration>>
-        OPEN
-        IN_PROGRESS
-        REVIEW
-        DONE
-        BLOCKED
-        +canTransitionTo(status TaskStatus) boolean
-    }
-
-    class Task {
+    class Recipe {
         <<interface>>
         +getId() int
         +getTitle() String
         +getDescription() String
-        +getStatus() TaskStatus
-        +setStatus(status TaskStatus) void
+        +getStatus() RecipeStatus
+        +setStatus(RecipeStatus)
         +getPriority() int
         +getDeadline() LocalDate
-        +setDeadline(deadline LocalDate) void
-        +getType() String
+        +setDeadline(LocalDate)
         +getCreatedAt() LocalDateTime
+        +getType() String
     }
 
-    class AbstractTask {
+    class AbstractRecipe {
         <<abstract>>
-        -id : int
-        -title : String
-        -description : String
-        -status : TaskStatus
-        -priority : int
-        -deadline : LocalDate
-        -createdAt : LocalDateTime
-        +toString() String
+        -id int
+        -title String
+        -description String
+        -status RecipeStatus
+        -priority int
+        -deadline LocalDate
+        -createdAt LocalDateTime
+        +AbstractRecipe(title, description, priority)
     }
 
-    class BugTask {
-        -severity : String
-        -stepsToReproduce : String
-        +getType() String
-        +getSeverity() String
-        +setSeverity(severity String) void
-        +getStepsToReproduce() String
+    class DessertRecipe {
+        -sweetness String
+        -preparationNotes String
+        +getSweetness() String
+        +setSweetness(String)
+        +getPreparationNotes() String
     }
 
-    class FeatureTask {
-        -estimatedEffort : int
-        -businessValue : int
-        +getType() String
-        +getEstimatedEffort() int
-        +getBusinessValue() int
+    class MainCourseRecipe {
+        -cookingTimeMinutes int
+        -satisfactionRating int
+        +getCookingTimeMinutes() int
+        +getSatisfactionRating() int
     }
 
-    class DocumentationTask {
-        -documentType : String
-        -targetAudience : String
-        +getType() String
-        +getDocumentType() String
-        +getTargetAudience() String
+    class AppetizerRecipe {
+        -serveTemperature String
+        -occasion String
+        +getServeTemperature() String
+        +getOccasion() String
     }
 
-    class TaskFactory {
+    class RecipeStatus {
+        <<enum>>
+        DRAFT
+        TESTING
+        APPROVED
+        COOKED
+        PAUSED
+        +canTransitionTo(RecipeStatus) boolean
+    }
+
+    class RecipeFactory {
         <<abstract>>
-        +createTask(title String, description String, priority int) Task*
-        +createTaskWithDeadline(title String, description String, priority int, deadline LocalDate) Task
+        +createRecipe(title, description, priority) Recipe
+        +createRecipeWithDeadline(title, description, priority, cookBy) Recipe
     }
 
-    class BugTaskFactory {
-        +createTask(title String, description String, priority int) Task
-        +createBugTask(title String, description String, priority int, severity String, steps String) BugTask
-    }
+    class DessertRecipeFactory
+    class MainCourseRecipeFactory
+    class AppetizerRecipeFactory
 
-    class FeatureTaskFactory {
-        +createTask(title String, description String, priority int) Task
-        +createFeatureTask(title String, description String, priority int, effort int, value int) FeatureTask
-    }
-
-    class DocumentationTaskFactory {
-        +createTask(title String, description String, priority int) Task
-        +createDocTask(title String, description String, priority int, docType String, audience String) DocumentationTask
-    }
-
-    class PriorityStrategy {
+    class SortStrategy {
         <<interface>>
-        +sort(tasks List~Task~) List~Task~
+        +sort(List~Recipe~) List~Recipe~
     }
 
-    class UrgentFirstStrategy {
-        +sort(tasks List~Task~) List~Task~
+    class UrgentFirstStrategy
+    class DeadlineFirstStrategy
+    class DessertFirstStrategy
+
+    class RecipeManager {
+        -recipes List~Recipe~
+        -currentStrategy SortStrategy
+        -factoryRegistry Map~String,RecipeFactory~
+        +createRecipe(type, title, desc, priority) Recipe
+        +registerFactory(type, factory)
+        +getAllRecipes() List~Recipe~
+        +getOrderedRecipes() List~Recipe~
+        +setSortStrategy(SortStrategy)
+        +transitionRecipe(id, RecipeStatus)
     }
 
-    class DeadlineFirstStrategy {
-        +sort(tasks List~Task~) List~Task~
-    }
+    Recipe <|.. AbstractRecipe
+    AbstractRecipe <|-- DessertRecipe
+    AbstractRecipe <|-- MainCourseRecipe
+    AbstractRecipe <|-- AppetizerRecipe
+    AbstractRecipe ..> RecipeStatus
 
-    class SeverityFirstStrategy {
-        +sort(tasks List~Task~) List~Task~
-    }
+    RecipeFactory <|-- DessertRecipeFactory
+    RecipeFactory <|-- MainCourseRecipeFactory
+    RecipeFactory <|-- AppetizerRecipeFactory
+    DessertRecipeFactory ..> DessertRecipe : creates
+    MainCourseRecipeFactory ..> MainCourseRecipe : creates
+    AppetizerRecipeFactory ..> AppetizerRecipe : creates
 
-    class TaskManager {
-        -tasks : List~Task~
-        -currentStrategy : PriorityStrategy
-        -factoryRegistry : Map~String, TaskFactory~
-        +createTask(type String, title String, description String, priority int) Task
-        +addTask(task Task) void
-        +removeTask(taskId int) boolean
-        +getTask(taskId int) Task
-        +getAllTasks() List~Task~
-        +getTasksByStatus(status TaskStatus) List~Task~
-        +transitionTask(taskId int, newStatus TaskStatus) void
-        +setPriorityStrategy(strategy PriorityStrategy) void
-        +getPrioritizedTasks() List~Task~
-        +getTaskSummary() String
-        +registerFactory(type String, factory TaskFactory) void
-    }
+    SortStrategy <|.. UrgentFirstStrategy
+    SortStrategy <|.. DeadlineFirstStrategy
+    SortStrategy <|.. DessertFirstStrategy
+    DessertFirstStrategy ..> DessertRecipe : inspects type
 
-    Task <|.. AbstractTask : implements
-    AbstractTask <|-- BugTask
-    AbstractTask <|-- FeatureTask
-    AbstractTask <|-- DocumentationTask
-    AbstractTask --> TaskStatus : uses
-
-    TaskFactory <|-- BugTaskFactory
-    TaskFactory <|-- FeatureTaskFactory
-    TaskFactory <|-- DocumentationTaskFactory
-    TaskFactory ..> Task : creates
-
-    PriorityStrategy <|.. UrgentFirstStrategy
-    PriorityStrategy <|.. DeadlineFirstStrategy
-    PriorityStrategy <|.. SeverityFirstStrategy
-
-    TaskManager o-- "0..*" Task : aggregation
-    TaskManager *-- "1" PriorityStrategy : composition
-    TaskManager ..> TaskFactory : uses
+    RecipeManager o--> Recipe : holds many
+    RecipeManager o--> SortStrategy : current
+    RecipeManager o--> RecipeFactory : registry
 ```
+
+## What to look at
+
+- **Two pattern hierarchies sit side by side.** `RecipeFactory` and its
+  three subclasses are the Factory Method side. `SortStrategy` and its
+  three implementations are the Strategy side.
+- **`RecipeManager` only points at abstractions.** Its three fields are
+  `List<Recipe>`, `SortStrategy`, `Map<String, RecipeFactory>` -- never
+  a concrete recipe, factory, or strategy class.
+- **`RecipeStatus` enum sits to the side** as a lightweight state
+  machine. The dashed arrow from `AbstractRecipe` represents the
+  state-transition check inside `setStatus(...)`.

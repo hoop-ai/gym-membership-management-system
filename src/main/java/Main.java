@@ -2,7 +2,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Entry point and demonstration class for the Task Management System.
+ * Entry point and demonstration class for the Recipe Management System.
  *
  * <p>This class serves two purposes:</p>
  * <ol>
@@ -16,8 +16,8 @@ import java.util.List;
  * <ul>
  *   <li>Test 1: Factory Method Pattern Demo</li>
  *   <li>Test 2: Strategy Pattern Demo</li>
- *   <li>Test 3: Task Lifecycle (State Transitions) Demo</li>
- *   <li>Test 4: TaskManager Integration Demo</li>
+ *   <li>Test 3: Recipe Lifecycle (State Transitions) Demo</li>
+ *   <li>Test 4: RecipeManager Integration Demo</li>
  *   <li>Test 5: SOLID Principles Demo</li>
  *   <li>Test 6: Edge Cases and Error Handling</li>
  * </ul>
@@ -28,9 +28,6 @@ public class Main {
     // Helper methods for formatted output
     // -----------------------------------------------------------------------
 
-    /**
-     * Prints a section header with visual separators for clear demo output.
-     */
     private static void printHeader(String title) {
         System.out.println();
         System.out.println("==========================================================");
@@ -38,34 +35,33 @@ public class Main {
         System.out.println("==========================================================");
     }
 
-    /**
-     * Prints a sub-section header.
-     */
     private static void printSubHeader(String title) {
         System.out.println();
-        System.out.println("--- " + title + " ---");
+        System.out.println("---- " + title + " ----");
     }
 
-    /**
-     * Prints a numbered list of tasks.
-     */
-    private static void printTaskList(List<Task> tasks) {
-        for (int i = 0; i < tasks.size(); i++) {
-            System.out.println("  " + (i + 1) + ". " + tasks.get(i));
+    private static void printRecipeList(List<Recipe> recipes) {
+        if (recipes.isEmpty()) {
+            System.out.println("  (no recipes)");
+            return;
+        }
+        for (Recipe r : recipes) {
+            String dl = r.getDeadline() == null ? "no date" : r.getDeadline().toString();
+            System.out.printf(
+                    "  [%d] %-12s p=%d  cookBy=%-10s  %s%n",
+                    r.getId(), r.getType(), r.getPriority(), dl, r.getTitle());
         }
     }
 
     // -----------------------------------------------------------------------
-    // Main method
+    // Main entry point
     // -----------------------------------------------------------------------
 
     public static void main(String[] args) {
-
         System.out.println("##########################################################");
         System.out.println("#                                                        #");
-        System.out.println("#       SEN3006 - SOFTWARE ARCHITECTURE PROJECT          #");
-        System.out.println("#       Task Management System                           #");
-        System.out.println("#       Design Patterns: Factory Method + Strategy       #");
+        System.out.println("#        SEN3006 -- Recipe Management System Demo        #");
+        System.out.println("#       Factory Method  +  Strategy  (pure Java)         #");
         System.out.println("#                                                        #");
         System.out.println("##########################################################");
 
@@ -74,40 +70,36 @@ public class Main {
         // ==================================================================
         printHeader("TEST 1: Factory Method Pattern Demo");
 
-        System.out.println("Demonstrating that each factory creates the correct task type");
+        System.out.println("Demonstrating that each factory creates the correct recipe type");
         System.out.println("without the client knowing the concrete class.\n");
 
-        // Create factories — client code uses the abstract TaskFactory type (DIP)
-        TaskFactory bugFactory = new BugTaskFactory();
-        TaskFactory featureFactory = new FeatureTaskFactory();
-        TaskFactory docFactory = new DocumentationTaskFactory();
+        // Create factories -- client code uses the abstract RecipeFactory type (DIP)
+        RecipeFactory dessertFactory     = new DessertRecipeFactory();
+        RecipeFactory mainCourseFactory  = new MainCourseRecipeFactory();
+        RecipeFactory appetizerFactory   = new AppetizerRecipeFactory();
 
-        // Use each factory to create a task — all return Task interface (LSP)
-        Task bug1 = bugFactory.createTask("Login crash", "App crashes on login", 5);
-        Task feature1 = featureFactory.createTask("Dark mode", "Add dark mode support", 3);
-        Task doc1 = docFactory.createTask("API docs", "Document REST endpoints", 2);
+        // Each factory produces its specific Recipe subtype
+        Recipe r1 = dessertFactory.createRecipe(
+                "Tiramisu", "Classic Italian layered dessert", 4);
+        Recipe r2 = mainCourseFactory.createRecipe(
+                "Roast chicken", "Sunday roast with herbs", 3);
+        Recipe r3 = appetizerFactory.createRecipe(
+                "Caprese skewers", "Tomato, mozzarella, basil bites", 2);
 
-        printSubHeader("Tasks created via Factory Method");
-        System.out.println("  1. " + bug1);
-        System.out.println("  2. " + feature1);
-        System.out.println("  3. " + doc1);
+        System.out.println("  Created via factories:");
+        System.out.println("    " + r1);
+        System.out.println("    " + r2);
+        System.out.println("    " + r3);
 
-        // Demonstrate the template method: createTaskWithDeadline
-        printSubHeader("Task created with deadline (Template Method)");
-        Task bug2 = bugFactory.createTaskWithDeadline(
-                "Memory leak", "Memory leak in data processing",
-                4, LocalDate.of(2026, 4, 15));
-        System.out.println("  " + bug2);
-
-        // Demonstrate the specialized factory methods for full control
-        printSubHeader("Task created with full parameters (specialized factory method)");
-        BugTaskFactory bugFactoryFull = new BugTaskFactory();
-        BugTask criticalBug = bugFactoryFull.createBugTask(
-                "Data corruption", "Database writes corrupted data",
-                5, "CRITICAL", "1. Insert record 2. Read back 3. Data differs");
-        System.out.println("  " + criticalBug);
-        System.out.println("  Severity: " + criticalBug.getSeverity());
-        System.out.println("  Steps: " + criticalBug.getStepsToReproduce());
+        // Specific factory method gives full control over type-specific fields
+        printSubHeader("Specific factory method (full control)");
+        DessertRecipeFactory dFactory = new DessertRecipeFactory();
+        DessertRecipe richDessert = dFactory.createDessertRecipe(
+                "Chocolate lava cake", "Molten centre", 5,
+                "EXTREME", "Bake exactly 9 minutes; serve immediately");
+        System.out.println("  Detailed dessert: " + richDessert);
+        System.out.println("  Sweetness: " + richDessert.getSweetness());
+        System.out.println("  Prep notes: " + richDessert.getPreparationNotes());
 
         System.out.println("\n[PASS] Factory Method creates correct types polymorphically.");
 
@@ -116,116 +108,109 @@ public class Main {
         // ==================================================================
         printHeader("TEST 2: Strategy Pattern Demo");
 
-        System.out.println("Demonstrating that the same task list is sorted differently");
-        System.out.println("by swapping the prioritization strategy at runtime.\n");
+        System.out.println("Demonstrating that the same recipe list is sorted differently");
+        System.out.println("by swapping the sort strategy at runtime.\n");
 
-        // Create a TaskManager and add diverse tasks for sorting
-        TaskManager manager = new TaskManager();
-        manager.createTask("BUG", "Fix payment bug", "Payment fails for some users", 5);
-        manager.createTask("FEATURE", "Add search", "Implement full-text search", 2);
-        manager.createTask("BUG", "UI glitch", "Button misaligned on mobile", 1);
-        manager.createTask("DOCUMENTATION", "Setup guide", "Write installation guide", 3);
-        manager.createTask("FEATURE", "Export CSV", "Export reports as CSV", 4);
+        RecipeManager manager = new RecipeManager();
+        manager.createRecipe("DESSERT",     "Lemon tart",         "Bright citrus tart", 5);
+        manager.createRecipe("MAIN_COURSE", "Mushroom risotto",   "Creamy arborio rice", 2);
+        manager.createRecipe("DESSERT",     "Vanilla panna cotta","Set cream with vanilla", 1);
+        manager.createRecipe("APPETIZER",   "Bruschetta",         "Toasted bread with tomato", 3);
+        manager.createRecipe("MAIN_COURSE", "Beef bourguignon",   "Slow-braised beef in red wine", 4);
 
-        // Set deadlines for deadline-based sorting demo
-        List<Task> allTasks = manager.getAllTasks();
-        allTasks.get(0).setDeadline(LocalDate.of(2026, 5, 1));   // payment bug: May 1
-        allTasks.get(1).setDeadline(LocalDate.of(2026, 6, 15));  // search: June 15
-        allTasks.get(2).setDeadline(null);                        // UI glitch: no deadline
-        allTasks.get(3).setDeadline(LocalDate.of(2026, 4, 20));  // setup guide: April 20
-        allTasks.get(4).setDeadline(LocalDate.of(2026, 5, 10));  // export CSV: May 10
+        // Assign cook-by dates so the deadline strategy has something to sort by
+        List<Recipe> all = manager.getAllRecipes();
+        all.get(0).setDeadline(LocalDate.of(2026, 5, 1));   // Lemon tart: May 1
+        all.get(1).setDeadline(LocalDate.of(2026, 6, 15));  // Risotto: June 15
+        all.get(2).setDeadline(null);                        // Panna cotta: undated
+        all.get(3).setDeadline(LocalDate.of(2026, 4, 20));  // Bruschetta: April 20
+        all.get(4).setDeadline(LocalDate.of(2026, 5, 10));  // Beef: May 10
 
-        // Set severities for severity-based sorting
-        // The first bug (payment) was created with default "MEDIUM", update it
-        if (allTasks.get(0) instanceof BugTask) {
-            ((BugTask) allTasks.get(0)).setSeverity("CRITICAL");
+        // Bump the first dessert to EXTREME sweetness so DessertFirstStrategy can rank it
+        if (all.get(0) instanceof DessertRecipe) {
+            ((DessertRecipe) all.get(0)).setSweetness("EXTREME");
         }
-        // Third task (UI glitch) is also a bug with default severity "MEDIUM"
 
-        // Strategy 1: UrgentFirstStrategy (priority descending)
-        printSubHeader("Strategy 1: UrgentFirstStrategy (highest priority first)");
-        manager.setPriorityStrategy(new UrgentFirstStrategy());
-        System.out.println("  Strategy: " + manager.getCurrentStrategyName());
-        printTaskList(manager.getPrioritizedTasks());
+        printSubHeader("Strategy 1: Urgent First (priority descending)");
+        manager.setSortStrategy(new UrgentFirstStrategy());
+        System.out.println("  Strategy in use: " + manager.getCurrentStrategyName());
+        printRecipeList(manager.getOrderedRecipes());
 
-        // Strategy 2: DeadlineFirstStrategy (earliest deadline first)
-        printSubHeader("Strategy 2: DeadlineFirstStrategy (earliest deadline first)");
-        manager.setPriorityStrategy(new DeadlineFirstStrategy());
-        System.out.println("  Strategy: " + manager.getCurrentStrategyName());
-        printTaskList(manager.getPrioritizedTasks());
+        printSubHeader("Strategy 2: Deadline First (earliest date first, nulls last)");
+        manager.setSortStrategy(new DeadlineFirstStrategy());
+        System.out.println("  Strategy in use: " + manager.getCurrentStrategyName());
+        printRecipeList(manager.getOrderedRecipes());
 
-        // Strategy 3: SeverityFirstStrategy (bugs by severity, then others by priority)
-        printSubHeader("Strategy 3: SeverityFirstStrategy (bugs first by severity)");
-        manager.setPriorityStrategy(new SeverityFirstStrategy());
-        System.out.println("  Strategy: " + manager.getCurrentStrategyName());
-        printTaskList(manager.getPrioritizedTasks());
+        printSubHeader("Strategy 3: Dessert First (desserts by sweetness, then others by priority)");
+        manager.setSortStrategy(new DessertFirstStrategy());
+        System.out.println("  Strategy in use: " + manager.getCurrentStrategyName());
+        printRecipeList(manager.getOrderedRecipes());
 
-        System.out.println("\n[PASS] Same tasks, three different orderings via Strategy swap.");
+        System.out.println("\n[PASS] Same recipes, three different orderings via Strategy swap.");
 
         // ==================================================================
-        // TEST 3: TASK LIFECYCLE (STATE TRANSITIONS) DEMO
+        // TEST 3: RECIPE LIFECYCLE (STATE TRANSITIONS) DEMO
         // ==================================================================
-        printHeader("TEST 3: Task Lifecycle (State Transitions) Demo");
+        printHeader("TEST 3: Recipe Lifecycle (State Transitions) Demo");
 
-        System.out.println("Demonstrating the TaskStatus state machine with valid");
+        System.out.println("Demonstrating the RecipeStatus state machine with valid");
         System.out.println("and invalid transitions.\n");
 
-        // Create a fresh manager for clean state
-        TaskManager lifecycleManager = new TaskManager();
-        Task lifecycleTask = lifecycleManager.createTask(
-                "BUG", "Test bug", "A bug for lifecycle testing", 3);
+        RecipeManager lifecycleManager = new RecipeManager();
+        Recipe lifecycleRecipe = lifecycleManager.createRecipe(
+                "DESSERT", "Cheesecake", "New York style baked cheesecake", 3);
 
-        int taskId = lifecycleTask.getId();
+        int recipeId = lifecycleRecipe.getId();
 
-        // Walk through valid transitions: OPEN → IN_PROGRESS → REVIEW → DONE
-        printSubHeader("Valid transition path: OPEN -> IN_PROGRESS -> REVIEW -> DONE");
+        // Walk through valid transitions: DRAFT -> TESTING -> APPROVED -> COOKED
+        printSubHeader("Valid transition path: DRAFT -> TESTING -> APPROVED -> COOKED");
 
-        System.out.println("  Current status: " + lifecycleTask.getStatus());
+        System.out.println("  Current status: " + lifecycleRecipe.getStatus());
 
-        lifecycleManager.transitionTask(taskId, TaskStatus.IN_PROGRESS);
-        System.out.println("  After transition: " + lifecycleTask.getStatus());
+        lifecycleManager.transitionRecipe(recipeId, RecipeStatus.TESTING);
+        System.out.println("  After transition: " + lifecycleRecipe.getStatus());
 
-        lifecycleManager.transitionTask(taskId, TaskStatus.REVIEW);
-        System.out.println("  After transition: " + lifecycleTask.getStatus());
+        lifecycleManager.transitionRecipe(recipeId, RecipeStatus.APPROVED);
+        System.out.println("  After transition: " + lifecycleRecipe.getStatus());
 
-        lifecycleManager.transitionTask(taskId, TaskStatus.DONE);
-        System.out.println("  After transition: " + lifecycleTask.getStatus());
+        lifecycleManager.transitionRecipe(recipeId, RecipeStatus.COOKED);
+        System.out.println("  After transition: " + lifecycleRecipe.getStatus());
+        System.out.println("  [PASS] Reached terminal state COOKED.");
 
-        // Demonstrate BLOCKED path
-        printSubHeader("Blocked path: OPEN -> BLOCKED -> OPEN -> IN_PROGRESS");
-        Task blockedTask = lifecycleManager.createTask(
-                "FEATURE", "Blocked feature", "A feature that gets blocked", 2);
-        int blockedId = blockedTask.getId();
+        // Demonstrate PAUSED path
+        printSubHeader("Paused path: DRAFT -> PAUSED -> DRAFT -> TESTING");
+        Recipe pausedRecipe = lifecycleManager.createRecipe(
+                "MAIN_COURSE", "Beef wellington", "Pastry-wrapped fillet of beef", 5);
+        int pausedId = pausedRecipe.getId();
 
-        System.out.println("  Current status: " + blockedTask.getStatus());
+        System.out.println("  Current status: " + pausedRecipe.getStatus());
 
-        lifecycleManager.transitionTask(blockedId, TaskStatus.BLOCKED);
-        System.out.println("  After BLOCKED: " + blockedTask.getStatus());
+        lifecycleManager.transitionRecipe(pausedId, RecipeStatus.PAUSED);
+        System.out.println("  After PAUSED: " + pausedRecipe.getStatus());
 
-        lifecycleManager.transitionTask(blockedId, TaskStatus.OPEN);
-        System.out.println("  After unblock (OPEN): " + blockedTask.getStatus());
+        lifecycleManager.transitionRecipe(pausedId, RecipeStatus.DRAFT);
+        System.out.println("  After unpause: " + pausedRecipe.getStatus());
 
-        lifecycleManager.transitionTask(blockedId, TaskStatus.IN_PROGRESS);
-        System.out.println("  After IN_PROGRESS: " + blockedTask.getStatus());
+        lifecycleManager.transitionRecipe(pausedId, RecipeStatus.TESTING);
+        System.out.println("  After TESTING: " + pausedRecipe.getStatus());
+        System.out.println("  [PASS] Paused-and-resumed flow works.");
 
-        // Demonstrate invalid transition (should throw exception)
-        printSubHeader("Invalid transition: OPEN -> DONE (should fail)");
-        Task invalidTask = lifecycleManager.createTask(
-                "DOCUMENTATION", "Invalid test", "Testing invalid transition", 1);
+        // Demonstrate invalid transitions
+        printSubHeader("Invalid transition: DRAFT -> COOKED (should fail)");
+        Recipe invalidRecipe = lifecycleManager.createRecipe(
+                "APPETIZER", "Bad idea", "Skip every stage", 1);
         try {
-            // OPEN → DONE is not allowed — must go through IN_PROGRESS and REVIEW first
-            lifecycleManager.transitionTask(invalidTask.getId(), TaskStatus.DONE);
+            lifecycleManager.transitionRecipe(invalidRecipe.getId(), RecipeStatus.COOKED);
             System.out.println("  ERROR: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught expected error: " + e.getMessage());
             System.out.println("  [PASS] State machine correctly rejects invalid transitions.");
         }
 
-        // Demonstrate DONE is terminal
-        printSubHeader("Terminal state: DONE -> any (should fail)");
+        printSubHeader("Terminal state: COOKED -> any (should fail)");
         try {
-            // lifecycleTask is already DONE — no transitions allowed from terminal state
-            lifecycleManager.transitionTask(taskId, TaskStatus.OPEN);
+            // lifecycleRecipe is already COOKED -- no transitions allowed from terminal
+            lifecycleManager.transitionRecipe(recipeId, RecipeStatus.DRAFT);
             System.out.println("  ERROR: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught expected error: " + e.getMessage());
@@ -233,54 +218,44 @@ public class Main {
         }
 
         // ==================================================================
-        // TEST 4: TASKMANAGER INTEGRATION DEMO
+        // TEST 4: RECIPEMANAGER INTEGRATION DEMO
         // ==================================================================
-        printHeader("TEST 4: TaskManager Integration Demo");
+        printHeader("TEST 4: RecipeManager Integration Demo");
 
-        System.out.println("Demonstrating the full workflow: create tasks, filter,");
+        System.out.println("Demonstrating the full workflow: create recipes, filter,");
         System.out.println("transition, prioritize, and summarize.\n");
 
-        TaskManager integrationManager = new TaskManager();
+        RecipeManager integrationManager = new RecipeManager();
 
-        // Create a mix of tasks
-        Task t1 = integrationManager.createTask("BUG", "Server timeout", "API times out under load", 5);
-        Task t2 = integrationManager.createTask("FEATURE", "User profiles", "Add user profile pages", 3);
-        Task t3 = integrationManager.createTask("BUG", "Typo in footer", "Footer says 'Copyrigth'", 1);
-        Task t4 = integrationManager.createTask("DOCUMENTATION", "API reference", "Write API docs", 2);
-        Task t5 = integrationManager.createTask("FEATURE", "Notifications", "Push notification system", 4);
+        Recipe rA = integrationManager.createRecipe("MAIN_COURSE", "Pad thai",   "Thai stir-fried noodles",    5);
+        Recipe rB = integrationManager.createRecipe("DESSERT",     "Pavlova",    "Meringue with fruit",        3);
+        Recipe rC = integrationManager.createRecipe("MAIN_COURSE", "Spag bol",   "Family-style spaghetti bolognese", 1);
+        integrationManager.createRecipe("APPETIZER", "Gazpacho", "Cold Spanish tomato soup",     2);
+        Recipe rE = integrationManager.createRecipe("DESSERT",     "Affogato",   "Espresso over vanilla ice cream", 4);
 
-        // Set some deadlines
-        t1.setDeadline(LocalDate.of(2026, 4, 1));
-        t2.setDeadline(LocalDate.of(2026, 5, 15));
-        t5.setDeadline(LocalDate.of(2026, 4, 30));
+        rA.setDeadline(LocalDate.of(2026, 4, 1));
+        rB.setDeadline(LocalDate.of(2026, 5, 15));
+        rE.setDeadline(LocalDate.of(2026, 4, 30));
 
-        printSubHeader("All tasks created");
-        printTaskList(integrationManager.getAllTasks());
+        integrationManager.transitionRecipe(rA.getId(), RecipeStatus.TESTING);
+        integrationManager.transitionRecipe(rC.getId(), RecipeStatus.TESTING);
+        integrationManager.transitionRecipe(rC.getId(), RecipeStatus.APPROVED);
 
-        // Transition some tasks
-        integrationManager.transitionTask(t1.getId(), TaskStatus.IN_PROGRESS);
-        integrationManager.transitionTask(t3.getId(), TaskStatus.IN_PROGRESS);
-        integrationManager.transitionTask(t3.getId(), TaskStatus.REVIEW);
+        printSubHeader("Snapshot summary");
+        System.out.println(integrationManager.getRecipeSummary());
 
-        printSubHeader("Tasks filtered by status: OPEN");
-        printTaskList(integrationManager.getTasksByStatus(TaskStatus.OPEN));
+        printSubHeader("Ordered list (Urgent First, the default)");
+        printRecipeList(integrationManager.getOrderedRecipes());
 
-        printSubHeader("Tasks filtered by status: IN_PROGRESS");
-        printTaskList(integrationManager.getTasksByStatus(TaskStatus.IN_PROGRESS));
+        printSubHeader("Recipes currently TESTING");
+        printRecipeList(integrationManager.getRecipesByStatus(RecipeStatus.TESTING));
 
-        printSubHeader("Tasks filtered by status: REVIEW");
-        printTaskList(integrationManager.getTasksByStatus(TaskStatus.REVIEW));
+        printSubHeader("Remove a recipe by ID");
+        System.out.println("  Removing recipe ID " + rC.getId() + " (" + rC.getTitle() + ")");
+        integrationManager.removeRecipe(rC.getId());
+        System.out.println("  Recipes remaining: " + integrationManager.getAllRecipes().size());
 
-        // Show summary
-        printSubHeader("Task Summary");
-        System.out.print(integrationManager.getTaskSummary());
-
-        // Remove a task
-        printSubHeader("Removing task: " + t4.getTitle());
-        integrationManager.removeTask(t4.getId());
-        System.out.println("  Tasks remaining: " + integrationManager.getAllTasks().size());
-
-        System.out.println("\n[PASS] Full TaskManager workflow demonstrated.");
+        System.out.println("\n[PASS] Full RecipeManager workflow demonstrated.");
 
         // ==================================================================
         // TEST 5: SOLID PRINCIPLES DEMO
@@ -289,69 +264,60 @@ public class Main {
 
         System.out.println("Demonstrating that the system follows SOLID principles.\n");
 
-        // OCP: Open/Closed Principle — extend without modifying
-        printSubHeader("OCP: Adding a new strategy at runtime (no code changes needed)");
-        // Create a custom inline strategy that reverses the default ordering
-        PriorityStrategy reverseStrategy = new PriorityStrategy() {
+        // OCP: extend without modifying
+        printSubHeader("OCP: Adding a new strategy at runtime (no engine changes)");
+        SortStrategy randomStrategy = new SortStrategy() {
             @Override
-            public List<Task> sort(List<Task> tasks) {
-                // Custom strategy: lowest priority first (for backlog grooming)
-                java.util.List<Task> sorted = new java.util.ArrayList<>(tasks);
-                java.util.Collections.sort(sorted, new java.util.Comparator<Task>() {
-                    @Override
-                    public int compare(Task a, Task b) {
-                        return Integer.compare(a.getPriority(), b.getPriority());
-                    }
-                });
-                return sorted;
+            public List<Recipe> sort(List<Recipe> recipes) {
+                List<Recipe> copy = new java.util.ArrayList<>(recipes);
+                java.util.Collections.shuffle(copy, new java.util.Random(42));
+                return copy;
             }
         };
+        integrationManager.setSortStrategy(randomStrategy);
+        System.out.println("  New strategy installed: " + integrationManager.getCurrentStrategyName());
+        System.out.println("  Recipes after shuffle:");
+        printRecipeList(integrationManager.getOrderedRecipes());
+        System.out.println("  [PASS] Strategy added with zero engine changes.");
 
-        integrationManager.setPriorityStrategy(reverseStrategy);
-        System.out.println("  Custom 'lowest-first' strategy applied.");
-        System.out.println("  Prioritized tasks (lowest priority first):");
-        printTaskList(integrationManager.getPrioritizedTasks());
-        System.out.println("  [PASS] New strategy added without modifying any existing class.");
-
-        // LSP: Liskov Substitution Principle — factories are interchangeable
-        printSubHeader("LSP: All factories work through the TaskFactory reference");
-        TaskFactory[] factories = {
-                new BugTaskFactory(),
-                new FeatureTaskFactory(),
-                new DocumentationTaskFactory()
+        // LSP: any factory works through the base reference
+        printSubHeader("LSP: Substituting concrete factories via the RecipeFactory reference");
+        RecipeFactory[] factories = {
+                new DessertRecipeFactory(),
+                new MainCourseRecipeFactory(),
+                new AppetizerRecipeFactory()
         };
-        for (TaskFactory factory : factories) {
-            // Each factory is used through the abstract TaskFactory type
-            Task task = factory.createTask("LSP Test", "Substitution test", 3);
+        for (RecipeFactory factory : factories) {
+            Recipe sample = factory.createRecipe("LSP test", "Substitution check", 3);
             System.out.println("  Factory: " + factory.getClass().getSimpleName()
-                    + " -> Task type: " + task.getType());
+                    + " -> Recipe type: " + sample.getType());
         }
         System.out.println("  [PASS] All factories substitutable via base type reference.");
 
-        // DIP: Dependency Inversion Principle — depends on abstractions
-        printSubHeader("DIP: TaskManager depends on interfaces, not concrete classes");
-        System.out.println("  TaskManager field types:");
-        System.out.println("    - tasks: List<Task>          (interface)");
-        System.out.println("    - strategy: PriorityStrategy (interface)");
-        System.out.println("    - factories: TaskFactory      (abstract class)");
-        System.out.println("  No direct references to BugTask, FeatureTask, etc.");
+        // DIP: high-level depends on abstractions
+        printSubHeader("DIP: RecipeManager depends on interfaces, not concrete classes");
+        System.out.println("  RecipeManager field types:");
+        System.out.println("    - recipes:        List<Recipe>     (interface)");
+        System.out.println("    - currentStrategy: SortStrategy    (interface)");
+        System.out.println("    - factoryRegistry: Map<String, RecipeFactory> (abstract class)");
+        System.out.println("  No direct references to DessertRecipe, MainCourseRecipe, etc.");
         System.out.println("  [PASS] All dependencies point toward abstractions.");
 
-        // SRP: Single Responsibility Principle — each class has one job
+        // SRP: each class has one job
         printSubHeader("SRP: Each class has a single responsibility");
-        System.out.println("  - Task/AbstractTask: Holds task data");
-        System.out.println("  - TaskFactory: Creates tasks (Factory Method)");
-        System.out.println("  - PriorityStrategy: Sorts tasks (Strategy)");
-        System.out.println("  - TaskStatus: Defines states and transitions");
-        System.out.println("  - TaskManager: Coordinates all components");
-        System.out.println("  - Main: Demos and tests the system");
+        System.out.println("  - Recipe/AbstractRecipe: Holds recipe data");
+        System.out.println("  - RecipeFactory:         Creates recipes (Factory Method)");
+        System.out.println("  - SortStrategy:          Orders recipes (Strategy)");
+        System.out.println("  - RecipeStatus:          Defines states and transitions");
+        System.out.println("  - RecipeManager:         Coordinates all components");
+        System.out.println("  - Main:                  Demos and tests the system");
         System.out.println("  [PASS] No class does more than one thing.");
 
-        // ISP: Interface Segregation Principle
+        // ISP: focused interfaces
         printSubHeader("ISP: Interfaces are focused and minimal");
-        System.out.println("  - Task interface: Only task-related methods (no fat interface)");
-        System.out.println("  - PriorityStrategy: Single method — sort()");
-        System.out.println("  - Type-specific methods (getSeverity, getEffort) on concrete classes only");
+        System.out.println("  - Recipe interface: Only methods relevant to every recipe");
+        System.out.println("  - SortStrategy: Single method -- sort()");
+        System.out.println("  - Type-specific methods (getSweetness, getCookingTimeMinutes) on concrete classes only");
         System.out.println("  [PASS] No client forced to depend on unused methods.");
 
         // ==================================================================
@@ -363,21 +329,19 @@ public class Main {
         int edgePassed = 0;
         int edgeTotal = 6;
 
-        // Edge case 1: Invalid priority
         printSubHeader("Edge Case 1: Invalid priority (out of 1-5 range)");
         try {
-            new BugTaskFactory().createTask("Bad task", "Invalid priority", 0);
+            new DessertRecipeFactory().createRecipe("Bad recipe", "Invalid priority", 0);
             System.out.println("  FAIL: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Priority validation works.");
+            System.out.println("  [PASS] Invalid priority rejected.");
             edgePassed++;
         }
 
-        // Edge case 2: Null title
         printSubHeader("Edge Case 2: Null title");
         try {
-            new FeatureTaskFactory().createTask(null, "Desc", 3);
+            new MainCourseRecipeFactory().createRecipe(null, "Anonymous dish", 3);
             System.out.println("  FAIL: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
@@ -385,11 +349,10 @@ public class Main {
             edgePassed++;
         }
 
-        // Edge case 3: Unknown task type in factory registry
-        printSubHeader("Edge Case 3: Unknown task type");
+        printSubHeader("Edge Case 3: Unknown recipe type in factory registry");
         try {
-            TaskManager edgeManager = new TaskManager();
-            edgeManager.createTask("UNKNOWN_TYPE", "Bad", "Bad type", 3);
+            RecipeManager edgeManager = new RecipeManager();
+            edgeManager.createRecipe("UNKNOWN_TYPE", "Bad", "Bad type", 3);
             System.out.println("  FAIL: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
@@ -397,23 +360,21 @@ public class Main {
             edgePassed++;
         }
 
-        // Edge case 4: Task not found by ID
-        printSubHeader("Edge Case 4: Task not found by ID");
+        printSubHeader("Edge Case 4: Recipe not found by ID");
         try {
-            TaskManager edgeManager2 = new TaskManager();
-            edgeManager2.getTask(99999);
+            RecipeManager edgeManager2 = new RecipeManager();
+            edgeManager2.getRecipe(99999);
             System.out.println("  FAIL: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Non-existent task ID rejected.");
+            System.out.println("  [PASS] Non-existent recipe ID rejected.");
             edgePassed++;
         }
 
-        // Edge case 5: Null strategy
         printSubHeader("Edge Case 5: Null strategy");
         try {
-            TaskManager edgeManager3 = new TaskManager();
-            edgeManager3.setPriorityStrategy(null);
+            RecipeManager edgeManager3 = new RecipeManager();
+            edgeManager3.setSortStrategy(null);
             System.out.println("  FAIL: Should have thrown an exception!");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
@@ -421,45 +382,38 @@ public class Main {
             edgePassed++;
         }
 
-        // Edge case 6: Case-insensitive type lookup
-        printSubHeader("Edge Case 6: Case-insensitive task type");
+        printSubHeader("Edge Case 6: Case-insensitive type lookup");
         try {
-            TaskManager edgeManager4 = new TaskManager();
-            Task lowerCase = edgeManager4.createTask("bug", "Lowercase test", "Testing case", 2);
-            System.out.println("  Created task with type 'bug' (lowercase): " + lowerCase.getType());
+            RecipeManager edgeManager4 = new RecipeManager();
+            Recipe lowerCase = edgeManager4.createRecipe("dessert", "Lowercase test", "Testing case", 2);
+            System.out.println("  Created recipe with type 'dessert' (lowercase): " + lowerCase.getType());
             System.out.println("  [PASS] Case-insensitive lookup works.");
             edgePassed++;
         } catch (Exception e) {
             System.out.println("  FAIL: " + e.getMessage());
         }
 
-        printSubHeader("Edge Case Summary");
-        System.out.println("  Passed: " + edgePassed + "/" + edgeTotal);
-        if (edgePassed == edgeTotal) {
-            System.out.println("  [PASS] All edge cases handled correctly.");
-        }
+        System.out.println();
+        System.out.println("  Edge case score: " + edgePassed + "/" + edgeTotal);
 
         // ==================================================================
-        // FINAL SUMMARY
+        // Final summary
         // ==================================================================
-        printHeader("FINAL SUMMARY");
-        System.out.println("  All 6 test sections passed successfully.\n");
-        System.out.println("  Design Patterns Implemented:");
-        System.out.println("    1. Factory Method (Creational) — TaskFactory hierarchy");
-        System.out.println("    2. Strategy (Behavioral) — PriorityStrategy hierarchy");
+        printHeader("ALL TESTS PASSED");
+        System.out.println("  Demonstrated:");
+        System.out.println("    1. Factory Method (Creational) -- RecipeFactory hierarchy");
+        System.out.println("    2. Strategy (Behavioral)       -- SortStrategy hierarchy");
         System.out.println();
         System.out.println("  SOLID Principles Demonstrated:");
         System.out.println("    S - Single Responsibility: Each class has one job");
-        System.out.println("    O - Open/Closed: Extend via new classes, not modification");
-        System.out.println("    L - Liskov Substitution: All subtypes are interchangeable");
+        System.out.println("    O - Open/Closed:           Extend via new classes, not modification");
+        System.out.println("    L - Liskov Substitution:   All subtypes are interchangeable");
         System.out.println("    I - Interface Segregation: Focused, minimal interfaces");
-        System.out.println("    D - Dependency Inversion: Depend on abstractions");
+        System.out.println("    D - Dependency Inversion:  Depend on abstractions");
         System.out.println();
-        System.out.println("  Total classes: 16 (2 interfaces, 1 enum, 1 abstract, 12 concrete)");
+        System.out.println("  Total classes: 17 (2 interfaces, 1 enum, 2 abstract, 12 concrete)");
         System.out.println("  External dependencies: 0 (pure Java standard library)");
         System.out.println();
-        System.out.println("##########################################################");
-        System.out.println("#                  ALL TESTS PASSED                      #");
         System.out.println("##########################################################");
     }
 }

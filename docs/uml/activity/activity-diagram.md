@@ -1,44 +1,45 @@
-# Activity Diagram
+# Activity Diagram -- Recipe lifecycle
 
-This diagram models the **task lifecycle** from creation through prioritization to completion. It shows the decision points for task type selection, the parallel choice of priority strategy, and the review/rework loop.
+End-to-end workflow of a recipe, from the moment a cook jots it down
+to the moment it is served to guests. The PlantUML source is in
+[recipe-lifecycle-activity.puml](recipe-lifecycle-activity.puml).
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> SelectType["Select Task Type"]
+    A[Cook jots a new recipe] --> B[RecipeManager.createRecipe]
+    B --> C[Recipe enters DRAFT]
+    C --> D{Ready to trial?}
 
-    SelectType --> TypeCheck{"Task Type?"}
-    TypeCheck -->|Bug| BugFactory["Create via BugTaskFactory"]
-    TypeCheck -->|Feature| FeatureFactory["Create via FeatureTaskFactory"]
-    TypeCheck -->|Documentation| DocFactory["Create via DocumentationTaskFactory"]
+    D -- no --> E[Transition to PAUSED]
+    E --> F[Wait for obstacle to clear]
+    F --> G[Transition back to DRAFT]
+    G --> D
 
-    BugFactory --> AddTask["Add Task to TaskManager"]
-    FeatureFactory --> AddTask
-    DocFactory --> AddTask
-
-    AddTask --> SelectStrategy["Select Priority Strategy"]
-
-    SelectStrategy --> Urgent["UrgentFirstStrategy"]
-    SelectStrategy --> Deadline["DeadlineFirstStrategy"]
-    SelectStrategy --> Severity["SeverityFirstStrategy"]
-
-    Urgent --> GetPrioritized["Get Prioritized Task List"]
-    Deadline --> GetPrioritized
-    Severity --> GetPrioritized
-
-    GetPrioritized --> ProcessTask["Process Task"]
-
-    ProcessTask --> NeedsReview{"Needs Review?"}
-
-    NeedsReview -->|Yes| SubmitReview["Submit for Review"]
-    SubmitReview --> ReviewTask["Review Task"]
-    ReviewTask --> Approved{"Approved?"}
-
-    Approved -->|Yes| MarkDone1["Mark as DONE"]
-    Approved -->|No| ReturnIP["Return to IN_PROGRESS"]
-    ReturnIP --> ProcessTask
-
-    NeedsReview -->|No| MarkDone2["Mark as DONE"]
-
-    MarkDone1 --> Stop([End])
-    MarkDone2 --> Stop
+    D -- yes --> H[Transition to TESTING]
+    H --> I{Obstacle?}
+    I -- yes --> E
+    I -- no --> J{Reliable result?}
+    J -- no --> H
+    J -- yes --> K[Transition to APPROVED]
+    K --> L{Revisions needed?}
+    L -- yes --> H
+    L -- no --> M[Serve to guests]
+    M --> N[Transition to COOKED]
+    N --> Z((End))
 ```
+
+## How the activity diagram maps to the state machine
+
+| Activity step | Concrete method call |
+|---|---|
+| Jot a recipe | `manager.createRecipe(type, title, description, priority)` |
+| Trial it | `manager.transitionRecipe(id, RecipeStatus.TESTING)` |
+| Finalise | `manager.transitionRecipe(id, RecipeStatus.APPROVED)` |
+| Revise | `manager.transitionRecipe(id, RecipeStatus.TESTING)` |
+| Pause | `manager.transitionRecipe(id, RecipeStatus.PAUSED)` |
+| Resume | `manager.transitionRecipe(id, RecipeStatus.DRAFT)` |
+| Serve and close | `manager.transitionRecipe(id, RecipeStatus.COOKED)` |
+
+Every step is validated by `AbstractRecipe.setStatus(...)`; an
+invalid call (e.g. trying to jump from `DRAFT` straight to `COOKED`)
+throws `IllegalArgumentException`.

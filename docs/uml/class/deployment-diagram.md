@@ -1,39 +1,32 @@
 # Deployment Diagram
 
-This diagram shows the **layered architecture** of the Task Management System running within a JVM environment. The Console UI Layer handles user interaction, the Business Logic Layer contains the TaskManager and prioritization strategies, and the Domain Model Layer holds the task entities, factories, and status enum.
+The whole system runs in one JVM. The PlantUML source is in
+[deployment-diagram.puml](deployment-diagram.puml).
 
 ```mermaid
 flowchart TB
-    subgraph JVM["JVM Runtime Environment"]
-        subgraph UILayer["Console UI Layer"]
-            Main["Main.java"]
-        end
-
-        subgraph BizLayer["Business Logic Layer"]
-            TM["TaskManager"]
-            UFS["UrgentFirstStrategy"]
-            DFS["DeadlineFirstStrategy"]
-            SFS["SeverityFirstStrategy"]
-        end
-
-        subgraph DomainLayer["Domain Model Layer"]
-            Tasks["Task / AbstractTask"]
-            BT["BugTask"]
-            FT["FeatureTask"]
-            DT["DocumentationTask"]
-            Factories["TaskFactory hierarchy"]
-            TS["TaskStatus"]
-        end
+    subgraph PC [User's computer]
+      OS[Operating System<br/>Windows / macOS / Linux]
+      subgraph JVM [Java Virtual Machine - JDK 8+]
+        MAIN[Main.class<br/>scripted demo]
+        APP[RecipeManagementApp.class<br/>console driver]
+        GUI[RecipeManagerGUI.class<br/>+ gui/*.class]
+        ENG[RecipeManager.class<br/>factories + strategies<br/>+ recipes + RecipeStatus]
+      end
     end
 
-    Main -->|invokes| TM
-    TM -->|delegates| UFS
-    TM -->|delegates| DFS
-    TM -->|delegates| SFS
-    TM -->|manages| Tasks
-    TM -->|creates via| Factories
-    Factories -->|produces| BT
-    Factories -->|produces| FT
-    Factories -->|produces| DT
-    Tasks --> TS
+    MAIN --> ENG
+    APP --> ENG
+    GUI --> ENG
 ```
+
+## What to look at
+
+- One process, one JVM, zero remote dependencies. The system runs
+  identically on Windows, macOS, and Linux as long as a JDK 8 or
+  newer is installed.
+- The three entry points are siblings; they all link the same engine
+  classes. Choosing one mode does not exclude the others.
+- No network connection, no database, no external service. This is
+  the simplest possible deployment topology -- intentional, given
+  the assignment's mandate of "pure Java with the standard library".

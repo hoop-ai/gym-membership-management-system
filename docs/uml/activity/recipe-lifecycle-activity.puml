@@ -1,0 +1,38 @@
+@startuml RecipeLifecycleActivity
+title Recipe end-to-end workflow -- Activity Diagram
+
+start
+:Cook jots a new recipe;
+:RecipeManager.createRecipe(...);
+:Recipe enters DRAFT;
+
+repeat
+  if (Ready to trial in the kitchen?) then (yes)
+    :Transition to TESTING;
+    if (Obstacle?) then (yes)
+      :Transition to PAUSED;
+      :Wait for obstacle to clear;
+      :Transition back to DRAFT;
+    else (no)
+      if (Result is reliable?) then (yes)
+        :Transition to APPROVED;
+        if (Final review reveals revision?) then (yes)
+          :Transition back to TESTING;
+        else (no)
+          :Serve to guests;
+          :Transition to COOKED;
+          stop
+        endif
+      else (no)
+        :Keep refining (loop back to TESTING);
+      endif
+    endif
+  else (no)
+    :Pause for later;
+    :Transition to PAUSED;
+    :Wait;
+    :Transition back to DRAFT;
+  endif
+repeat while (still iterating?)
+
+@enduml
