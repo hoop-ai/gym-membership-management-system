@@ -87,6 +87,7 @@ docs/uml/exports/
 *.pdf
 *.html
 !docs/report/*.html
+!PRESENTATION.pdf
 **/baseline-main-output.txt
 **/test-output.txt
 
