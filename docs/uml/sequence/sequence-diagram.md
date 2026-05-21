@@ -1,44 +1,62 @@
 # Sequence Diagram
 
-Two flows through the system. The PlantUML source is in
-[recipe-creation-sequence.puml](recipe-creation-sequence.puml).
+Two flows: building a plan via the Builder, then enrolling a member
+and publishing a targeted event through the Observer fabric. PlantUML
+source: [publish-event-sequence.puml](publish-event-sequence.puml).
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant RM as RecipeManager
-    participant Reg as factoryRegistry
-    participant DF as DessertRecipeFactory
-    participant DR as DessertRecipe
-    participant ST as currentStrategy
+    actor Staff
+    participant Builder as MembershipPlan.Builder
+    participant Plan as MembershipPlan
+    participant Gym
+    participant Alice as Member alice
+    participant Email as EmailMemberNotifier
+    participant Push as PushMemberNotifier
 
-    Note over User,RM: Create a recipe (Factory Method)
+    Note over Staff,Builder: Build a plan (Builder pattern)
 
-    User->>RM: createRecipe("DESSERT", "Tiramisu", "...", 4)
-    RM->>Reg: get("DESSERT")
-    Reg-->>RM: DessertRecipeFactory
-    RM->>DF: createRecipe("Tiramisu", "...", 4)
-    DF->>DR: new DessertRecipe(...)
-    DR-->>DF: recipe
-    DF-->>RM: Recipe
-    RM->>RM: recipes.add(recipe)
-    RM-->>User: Recipe
+    Staff->>Builder: new Builder("Premium Annual")
+    Staff->>Builder: durationMonths(12)
+    Staff->>Builder: monthlyFee(89.99)
+    Staff->>Builder: accessTier(PREMIUM)
+    Staff->>Builder: includesClass("Yoga")
+    Staff->>Builder: build()
+    Builder->>Plan: new MembershipPlan(this)
+    Plan-->>Builder: plan
+    Builder-->>Staff: MembershipPlan
 
-    Note over User,RM: Order the recipe list (Strategy)
+    Note over Staff,Gym: Register the plan + enrol Alice
 
-    User->>RM: setSortStrategy(new DeadlineFirstStrategy())
-    User->>RM: getOrderedRecipes()
-    RM->>ST: sort(recipes)
-    ST-->>RM: sorted copy
-    RM-->>User: List<Recipe>
+    Staff->>Gym: registerPlan(plan)
+    Staff->>Gym: enrolMember("Alice", ...)
+    Gym->>Alice: new Member(...)
+    Alice-->>Gym: member
+    Gym-->>Staff: Member
+
+    Staff->>Alice: attachNotifier(EmailMemberNotifier)
+    Staff->>Alice: attachNotifier(PushMemberNotifier)
+
+    Note over Staff,Gym: Publish a targeted event (Observer pattern)
+
+    Staff->>Gym: publishPaymentDue(alice.id, dueDate, 89.99)
+    Gym->>Alice: getNotifiers()
+    Alice-->>Gym: [email, push]
+    Gym->>Email: onEvent(event)
+    Email->>Email: append to sentLog
+    Gym->>Push: onEvent(event)
+    Push->>Push: append to sentLog
 ```
 
 ## What to look at
 
-- **Factory Method in action.** Notice that the user only passes the
-  string `"DESSERT"`. The manager looks up the right factory and the
-  factory does the `new DessertRecipe(...)`. The user never names the
-  concrete class.
-- **Strategy in action.** Swapping `currentStrategy` is a single
-  setter call. The next call to `getOrderedRecipes()` runs through the
-  newly-installed strategy with no further plumbing.
+- **Builder in action.** The Staff sets each attribute via a chainable
+  method, then calls `build()`. The Builder validates and constructs
+  the immutable `MembershipPlan`. The Staff never calls the
+  `MembershipPlan` constructor directly -- it is private.
+- **Observer in action.** A single `publishPaymentDue(...)` call on
+  the `Gym` causes both of Alice's attached notifiers to fire. The
+  `Gym` never names `EmailMemberNotifier` or `PushMemberNotifier`
+  directly -- it iterates `Alice.getNotifiers()` and calls
+  `onEvent(event)` polymorphically through the `MemberNotifier`
+  interface.

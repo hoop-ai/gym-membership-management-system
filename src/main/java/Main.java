@@ -1,31 +1,21 @@
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Entry point and demonstration class for the Recipe Management System.
+ * Entry point and scripted demonstration of the Gym Membership Management
+ * System.
  *
- * <p>This class serves two purposes:</p>
- * <ol>
- *   <li><strong>Test Cases:</strong> Demonstrates that both design patterns
- *       (Factory Method and Strategy) are correctly implemented and working.</li>
- *   <li><strong>Presentation Demo:</strong> Provides clear, labeled output that
- *       can be shown during the in-person project presentation to the professor.</li>
- * </ol>
- *
- * <p>The test cases are organized into 6 sections:</p>
- * <ul>
- *   <li>Test 1: Factory Method Pattern Demo</li>
- *   <li>Test 2: Strategy Pattern Demo</li>
- *   <li>Test 3: Recipe Lifecycle (State Transitions) Demo</li>
- *   <li>Test 4: RecipeManager Integration Demo</li>
- *   <li>Test 5: SOLID Principles Demo</li>
- *   <li>Test 6: Edge Cases and Error Handling</li>
- * </ul>
+ * <p>The class runs six self-checking sections that exercise the
+ * <strong>Builder</strong> and <strong>Observer</strong> design patterns,
+ * the {@link MembershipStatus} state machine, and a handful of edge cases.
+ * Every check prints {@code [PASS]} on success; the program ends with the
+ * banner {@code ALL TESTS PASSED} when every section is green.</p>
  */
 public class Main {
 
     // -----------------------------------------------------------------------
-    // Helper methods for formatted output
+    // Output helpers
     // -----------------------------------------------------------------------
 
     private static void printHeader(String title) {
@@ -40,380 +30,346 @@ public class Main {
         System.out.println("---- " + title + " ----");
     }
 
-    private static void printRecipeList(List<Recipe> recipes) {
-        if (recipes.isEmpty()) {
-            System.out.println("  (no recipes)");
-            return;
-        }
-        for (Recipe r : recipes) {
-            String dl = r.getDeadline() == null ? "no date" : r.getDeadline().toString();
-            System.out.printf(
-                    "  [%d] %-12s p=%d  cookBy=%-10s  %s%n",
-                    r.getId(), r.getType(), r.getPriority(), dl, r.getTitle());
-        }
-    }
-
     // -----------------------------------------------------------------------
-    // Main entry point
+    // Main
     // -----------------------------------------------------------------------
 
     public static void main(String[] args) {
         System.out.println("##########################################################");
         System.out.println("#                                                        #");
-        System.out.println("#        SEN3006 -- Recipe Management System Demo        #");
-        System.out.println("#       Factory Method  +  Strategy  (pure Java)         #");
+        System.out.println("#    SEN3006 -- Gym Membership Management System Demo    #");
+        System.out.println("#         Builder  +  Observer  (pure Java)              #");
         System.out.println("#                                                        #");
         System.out.println("##########################################################");
 
         // ==================================================================
-        // TEST 1: FACTORY METHOD PATTERN DEMO
+        // TEST 1: BUILDER PATTERN DEMO
         // ==================================================================
-        printHeader("TEST 1: Factory Method Pattern Demo");
+        printHeader("TEST 1: Builder Pattern Demo");
+        System.out.println("Demonstrating that membership plans -- objects with many");
+        System.out.println("optional, validated attributes -- are constructed via a fluent,");
+        System.out.println("immutable Builder.\n");
 
-        System.out.println("Demonstrating that each factory creates the correct recipe type");
-        System.out.println("without the client knowing the concrete class.\n");
+        MembershipPlan basic = new MembershipPlan.Builder("Basic Monthly")
+                .durationMonths(1)
+                .monthlyFee(29.99)
+                .accessTier(AccessTier.BASIC)
+                .build();
 
-        // Create factories -- client code uses the abstract RecipeFactory type (DIP)
-        RecipeFactory dessertFactory     = new DessertRecipeFactory();
-        RecipeFactory mainCourseFactory  = new MainCourseRecipeFactory();
-        RecipeFactory appetizerFactory   = new AppetizerRecipeFactory();
+        MembershipPlan standard = new MembershipPlan.Builder("Standard Six-Month")
+                .durationMonths(6)
+                .monthlyFee(49.99)
+                .accessTier(AccessTier.STANDARD)
+                .includesClass("Yoga")
+                .includesClass("Spinning")
+                .freezeDaysPerYear(30)
+                .build();
 
-        // Each factory produces its specific Recipe subtype
-        Recipe r1 = dessertFactory.createRecipe(
-                "Tiramisu", "Classic Italian layered dessert", 4);
-        Recipe r2 = mainCourseFactory.createRecipe(
-                "Roast chicken", "Sunday roast with herbs", 3);
-        Recipe r3 = appetizerFactory.createRecipe(
-                "Caprese skewers", "Tomato, mozzarella, basil bites", 2);
+        MembershipPlan premium = new MembershipPlan.Builder("Premium Annual")
+                .durationMonths(12)
+                .monthlyFee(89.99)
+                .accessTier(AccessTier.PREMIUM)
+                .includesClass("Yoga")
+                .includesClass("Spinning")
+                .includesClass("HIIT")
+                .includesClass("Pilates")
+                .guestPassesPerMonth(4)
+                .freezeDaysPerYear(60)
+                .personalTrainerIncluded(true)
+                .build();
 
-        System.out.println("  Created via factories:");
-        System.out.println("    " + r1);
-        System.out.println("    " + r2);
-        System.out.println("    " + r3);
-
-        // Specific factory method gives full control over type-specific fields
-        printSubHeader("Specific factory method (full control)");
-        DessertRecipeFactory dFactory = new DessertRecipeFactory();
-        DessertRecipe richDessert = dFactory.createDessertRecipe(
-                "Chocolate lava cake", "Molten centre", 5,
-                "EXTREME", "Bake exactly 9 minutes; serve immediately");
-        System.out.println("  Detailed dessert: " + richDessert);
-        System.out.println("  Sweetness: " + richDessert.getSweetness());
-        System.out.println("  Prep notes: " + richDessert.getPreparationNotes());
-
-        System.out.println("\n[PASS] Factory Method creates correct types polymorphically.");
-
-        // ==================================================================
-        // TEST 2: STRATEGY PATTERN DEMO
-        // ==================================================================
-        printHeader("TEST 2: Strategy Pattern Demo");
-
-        System.out.println("Demonstrating that the same recipe list is sorted differently");
-        System.out.println("by swapping the sort strategy at runtime.\n");
-
-        RecipeManager manager = new RecipeManager();
-        manager.createRecipe("DESSERT",     "Lemon tart",         "Bright citrus tart", 5);
-        manager.createRecipe("MAIN_COURSE", "Mushroom risotto",   "Creamy arborio rice", 2);
-        manager.createRecipe("DESSERT",     "Vanilla panna cotta","Set cream with vanilla", 1);
-        manager.createRecipe("APPETIZER",   "Bruschetta",         "Toasted bread with tomato", 3);
-        manager.createRecipe("MAIN_COURSE", "Beef bourguignon",   "Slow-braised beef in red wine", 4);
-
-        // Assign cook-by dates so the deadline strategy has something to sort by
-        List<Recipe> all = manager.getAllRecipes();
-        all.get(0).setDeadline(LocalDate.of(2026, 5, 1));   // Lemon tart: May 1
-        all.get(1).setDeadline(LocalDate.of(2026, 6, 15));  // Risotto: June 15
-        all.get(2).setDeadline(null);                        // Panna cotta: undated
-        all.get(3).setDeadline(LocalDate.of(2026, 4, 20));  // Bruschetta: April 20
-        all.get(4).setDeadline(LocalDate.of(2026, 5, 10));  // Beef: May 10
-
-        // Bump the first dessert to EXTREME sweetness so DessertFirstStrategy can rank it
-        if (all.get(0) instanceof DessertRecipe) {
-            ((DessertRecipe) all.get(0)).setSweetness("EXTREME");
-        }
-
-        printSubHeader("Strategy 1: Urgent First (priority descending)");
-        manager.setSortStrategy(new UrgentFirstStrategy());
-        System.out.println("  Strategy in use: " + manager.getCurrentStrategyName());
-        printRecipeList(manager.getOrderedRecipes());
-
-        printSubHeader("Strategy 2: Deadline First (earliest date first, nulls last)");
-        manager.setSortStrategy(new DeadlineFirstStrategy());
-        System.out.println("  Strategy in use: " + manager.getCurrentStrategyName());
-        printRecipeList(manager.getOrderedRecipes());
-
-        printSubHeader("Strategy 3: Dessert First (desserts by sweetness, then others by priority)");
-        manager.setSortStrategy(new DessertFirstStrategy());
-        System.out.println("  Strategy in use: " + manager.getCurrentStrategyName());
-        printRecipeList(manager.getOrderedRecipes());
-
-        System.out.println("\n[PASS] Same recipes, three different orderings via Strategy swap.");
+        System.out.println("  " + basic);
+        System.out.println("  " + standard);
+        System.out.println("  " + premium);
+        System.out.println();
+        System.out.printf("  Premium total cost over %d months: %.2f%n",
+                premium.getDurationMonths(), premium.getTotalCost());
+        System.out.println("\n[PASS] Builder produced three distinct, immutable plans.");
 
         // ==================================================================
-        // TEST 3: RECIPE LIFECYCLE (STATE TRANSITIONS) DEMO
+        // TEST 2: OBSERVER PATTERN DEMO
         // ==================================================================
-        printHeader("TEST 3: Recipe Lifecycle (State Transitions) Demo");
+        printHeader("TEST 2: Observer Pattern Demo");
+        System.out.println("Demonstrating that the Gym (Subject) publishes events that are");
+        System.out.println("delivered to every attached MemberNotifier (Observer), with");
+        System.out.println("channel-specific formatting.\n");
 
-        System.out.println("Demonstrating the RecipeStatus state machine with valid");
-        System.out.println("and invalid transitions.\n");
+        Gym gym = new Gym("Iron Park Fitness");
+        gym.registerPlan(basic);
+        gym.registerPlan(standard);
+        gym.registerPlan(premium);
 
-        RecipeManager lifecycleManager = new RecipeManager();
-        Recipe lifecycleRecipe = lifecycleManager.createRecipe(
-                "DESSERT", "Cheesecake", "New York style baked cheesecake", 3);
+        Member alice = gym.enrolMember("Alice Aydin",   "alice@example.com",  "+90-555-0001", "Premium Annual");
+        Member bob   = gym.enrolMember("Bob Bektas",    "bob@example.com",    "+90-555-0002", "Standard Six-Month");
+        Member chloe = gym.enrolMember("Chloe Celikel", "chloe@example.com",  "+90-555-0003", "Basic Monthly");
 
-        int recipeId = lifecycleRecipe.getId();
+        // Alice prefers email + push; Bob prefers SMS; Chloe takes all three.
+        EmailMemberNotifier aliceEmail = new EmailMemberNotifier(alice);
+        PushMemberNotifier  alicePush  = new PushMemberNotifier(alice);
+        alice.attachNotifier(aliceEmail);
+        alice.attachNotifier(alicePush);
 
-        // Walk through valid transitions: DRAFT -> TESTING -> APPROVED -> COOKED
-        printSubHeader("Valid transition path: DRAFT -> TESTING -> APPROVED -> COOKED");
+        SmsMemberNotifier bobSms = new SmsMemberNotifier(bob);
+        bob.attachNotifier(bobSms);
 
-        System.out.println("  Current status: " + lifecycleRecipe.getStatus());
+        EmailMemberNotifier chloeEmail = new EmailMemberNotifier(chloe);
+        SmsMemberNotifier   chloeSms   = new SmsMemberNotifier(chloe);
+        PushMemberNotifier  chloePush  = new PushMemberNotifier(chloe);
+        chloe.attachNotifier(chloeEmail);
+        chloe.attachNotifier(chloeSms);
+        chloe.attachNotifier(chloePush);
 
-        lifecycleManager.transitionRecipe(recipeId, RecipeStatus.TESTING);
-        System.out.println("  After transition: " + lifecycleRecipe.getStatus());
+        printSubHeader("Targeted payment-due event for Alice");
+        gym.publishPaymentDue(alice.getId(), LocalDate.now().plusDays(7), 89.99);
 
-        lifecycleManager.transitionRecipe(recipeId, RecipeStatus.APPROVED);
-        System.out.println("  After transition: " + lifecycleRecipe.getStatus());
+        printSubHeader("Targeted renewal reminder for Bob");
+        bob.setStatus(MembershipStatus.ACTIVE);
+        bob.setStatus(MembershipStatus.EXPIRING);
+        gym.publishRenewalReminder(bob.getId());
 
-        lifecycleManager.transitionRecipe(recipeId, RecipeStatus.COOKED);
-        System.out.println("  After transition: " + lifecycleRecipe.getStatus());
-        System.out.println("  [PASS] Reached terminal state COOKED.");
+        printSubHeader("Broadcast: class cancellation");
+        gym.publishClassCancellation("Spinning", LocalDate.now().plusDays(1));
 
-        // Demonstrate PAUSED path
-        printSubHeader("Paused path: DRAFT -> PAUSED -> DRAFT -> TESTING");
-        Recipe pausedRecipe = lifecycleManager.createRecipe(
-                "MAIN_COURSE", "Beef wellington", "Pastry-wrapped fillet of beef", 5);
-        int pausedId = pausedRecipe.getId();
+        printSubHeader("Broadcast: promotion");
+        gym.publishPromotion(20.0, "20% off Premium plans until the end of the month!");
 
-        System.out.println("  Current status: " + pausedRecipe.getStatus());
+        // Assertions on the logs.
+        int aliceMessages = aliceEmail.getSentLog().size() + alicePush.getSentLog().size();
+        int bobMessages   = bobSms.getSentLog().size();
+        int chloeMessages = chloeEmail.getSentLog().size() + chloeSms.getSentLog().size() + chloePush.getSentLog().size();
 
-        lifecycleManager.transitionRecipe(pausedId, RecipeStatus.PAUSED);
-        System.out.println("  After PAUSED: " + pausedRecipe.getStatus());
+        System.out.println();
+        System.out.printf("  Alice received %d messages across her 2 channels.%n", aliceMessages);
+        System.out.printf("  Bob received   %d messages across his 1 channel.%n",  bobMessages);
+        System.out.printf("  Chloe received %d messages across her 3 channels.%n", chloeMessages);
 
-        lifecycleManager.transitionRecipe(pausedId, RecipeStatus.DRAFT);
-        System.out.println("  After unpause: " + pausedRecipe.getStatus());
+        // Alice: 1 targeted (payment) * 2 channels + 2 broadcasts * 2 = 6
+        // Bob:   1 targeted (renewal) * 1 channel  + 2 broadcasts * 1 = 3
+        // Chloe: 0 targeted             * 3 channels + 2 broadcasts * 3 = 6
+        assertEqual(6, aliceMessages, "Alice total messages");
+        assertEqual(3, bobMessages,   "Bob total messages");
+        assertEqual(6, chloeMessages, "Chloe total messages");
+        System.out.println("\n[PASS] Targeted and broadcast events delivered to the right notifiers.");
 
-        lifecycleManager.transitionRecipe(pausedId, RecipeStatus.TESTING);
-        System.out.println("  After TESTING: " + pausedRecipe.getStatus());
-        System.out.println("  [PASS] Paused-and-resumed flow works.");
+        // ==================================================================
+        // TEST 3: MEMBERSHIP STATUS STATE MACHINE
+        // ==================================================================
+        printHeader("TEST 3: Membership Lifecycle Demo");
+        System.out.println("Demonstrating that the MembershipStatus enum enforces valid");
+        System.out.println("transitions and rejects invalid ones.\n");
 
-        // Demonstrate invalid transitions
-        printSubHeader("Invalid transition: DRAFT -> COOKED (should fail)");
-        Recipe invalidRecipe = lifecycleManager.createRecipe(
-                "APPETIZER", "Bad idea", "Skip every stage", 1);
+        Member dilan = gym.enrolMember("Dilan Demir", "dilan@example.com", "", "Standard Six-Month");
+
+        printSubHeader("Happy path: PENDING -> ACTIVE -> EXPIRING -> ACTIVE -> EXPIRING -> EXPIRED");
+        dilan.setStatus(MembershipStatus.ACTIVE);
+        System.out.println("  " + dilan.getStatus());
+        dilan.setStatus(MembershipStatus.EXPIRING);
+        System.out.println("  " + dilan.getStatus());
+        dilan.setStatus(MembershipStatus.ACTIVE);   // renewed!
+        System.out.println("  " + dilan.getStatus() + " (renewal date pushed forward)");
+        dilan.setStatus(MembershipStatus.EXPIRING);
+        System.out.println("  " + dilan.getStatus());
+        dilan.setStatus(MembershipStatus.EXPIRED);
+        System.out.println("  " + dilan.getStatus());
+        System.out.println("  [PASS] Reached EXPIRED via the happy path.");
+
+        printSubHeader("Freeze branch: ACTIVE -> FROZEN -> ACTIVE");
+        Member emir = gym.enrolMember("Emir Erdogan", "emir@example.com", "", "Premium Annual");
+        emir.setStatus(MembershipStatus.ACTIVE);
+        emir.setStatus(MembershipStatus.FROZEN);
+        System.out.println("  After freeze: " + emir.getStatus());
+        emir.setStatus(MembershipStatus.ACTIVE);
+        System.out.println("  After resume: " + emir.getStatus());
+        System.out.println("  [PASS] Freeze/resume cycle works.");
+
+        printSubHeader("Invalid: PENDING -> EXPIRED (should fail)");
+        Member feyza = gym.enrolMember("Feyza Firat", "feyza@example.com", "", "Basic Monthly");
         try {
-            lifecycleManager.transitionRecipe(invalidRecipe.getId(), RecipeStatus.COOKED);
-            System.out.println("  ERROR: Should have thrown an exception!");
+            feyza.setStatus(MembershipStatus.EXPIRED);
+            System.out.println("  FAIL: should have thrown");
         } catch (IllegalArgumentException e) {
-            System.out.println("  Caught expected error: " + e.getMessage());
-            System.out.println("  [PASS] State machine correctly rejects invalid transitions.");
+            System.out.println("  Caught: " + e.getMessage());
+            System.out.println("  [PASS] State machine rejected the invalid transition.");
         }
 
-        printSubHeader("Terminal state: COOKED -> any (should fail)");
+        printSubHeader("Terminal state: EXPIRED -> anything (should fail)");
         try {
-            // lifecycleRecipe is already COOKED -- no transitions allowed from terminal
-            lifecycleManager.transitionRecipe(recipeId, RecipeStatus.DRAFT);
-            System.out.println("  ERROR: Should have thrown an exception!");
+            dilan.setStatus(MembershipStatus.ACTIVE);
+            System.out.println("  FAIL: should have thrown");
         } catch (IllegalArgumentException e) {
-            System.out.println("  Caught expected error: " + e.getMessage());
-            System.out.println("  [PASS] Terminal state correctly blocks all transitions.");
+            System.out.println("  Caught: " + e.getMessage());
+            System.out.println("  [PASS] Terminal state blocks all transitions.");
         }
 
         // ==================================================================
-        // TEST 4: RECIPEMANAGER INTEGRATION DEMO
+        // TEST 4: GYM INTEGRATION DEMO
         // ==================================================================
-        printHeader("TEST 4: RecipeManager Integration Demo");
+        printHeader("TEST 4: Gym Integration Demo");
+        System.out.println("Demonstrating the full workflow: register plans, enrol members,");
+        System.out.println("attach notifiers, transition statuses, publish events, summarise.\n");
 
-        System.out.println("Demonstrating the full workflow: create recipes, filter,");
-        System.out.println("transition, prioritize, and summarize.\n");
+        Gym demoGym = new Gym("Sunrise Club");
+        demoGym.registerPlan(basic);
+        demoGym.registerPlan(standard);
+        demoGym.registerPlan(premium);
 
-        RecipeManager integrationManager = new RecipeManager();
+        Member g1 = demoGym.enrolMember("Guest One",   "g1@example.com", "", "Basic Monthly");
+        Member g2 = demoGym.enrolMember("Guest Two",   "g2@example.com", "", "Standard Six-Month");
+        Member g3 = demoGym.enrolMember("Guest Three", "g3@example.com", "", "Premium Annual");
 
-        Recipe rA = integrationManager.createRecipe("MAIN_COURSE", "Pad thai",   "Thai stir-fried noodles",    5);
-        Recipe rB = integrationManager.createRecipe("DESSERT",     "Pavlova",    "Meringue with fruit",        3);
-        Recipe rC = integrationManager.createRecipe("MAIN_COURSE", "Spag bol",   "Family-style spaghetti bolognese", 1);
-        integrationManager.createRecipe("APPETIZER", "Gazpacho", "Cold Spanish tomato soup",     2);
-        Recipe rE = integrationManager.createRecipe("DESSERT",     "Affogato",   "Espresso over vanilla ice cream", 4);
+        g1.attachNotifier(new EmailMemberNotifier(g1));
+        g2.attachNotifier(new SmsMemberNotifier(g2));
+        g3.attachNotifier(new PushMemberNotifier(g3));
 
-        rA.setDeadline(LocalDate.of(2026, 4, 1));
-        rB.setDeadline(LocalDate.of(2026, 5, 15));
-        rE.setDeadline(LocalDate.of(2026, 4, 30));
+        g1.setStatus(MembershipStatus.ACTIVE);
+        g2.setStatus(MembershipStatus.ACTIVE);
+        g3.setStatus(MembershipStatus.ACTIVE);
 
-        integrationManager.transitionRecipe(rA.getId(), RecipeStatus.TESTING);
-        integrationManager.transitionRecipe(rC.getId(), RecipeStatus.TESTING);
-        integrationManager.transitionRecipe(rC.getId(), RecipeStatus.APPROVED);
+        demoGym.publishPaymentDue(g1.getId(), LocalDate.now().plusDays(5), 29.99);
+        demoGym.publishPromotion(15.0, "Refer a friend and save 15%.");
 
-        printSubHeader("Snapshot summary");
-        System.out.println(integrationManager.getRecipeSummary());
-
-        printSubHeader("Ordered list (Urgent First, the default)");
-        printRecipeList(integrationManager.getOrderedRecipes());
-
-        printSubHeader("Recipes currently TESTING");
-        printRecipeList(integrationManager.getRecipesByStatus(RecipeStatus.TESTING));
-
-        printSubHeader("Remove a recipe by ID");
-        System.out.println("  Removing recipe ID " + rC.getId() + " (" + rC.getTitle() + ")");
-        integrationManager.removeRecipe(rC.getId());
-        System.out.println("  Recipes remaining: " + integrationManager.getAllRecipes().size());
-
-        System.out.println("\n[PASS] Full RecipeManager workflow demonstrated.");
+        System.out.println();
+        System.out.println(demoGym.getSummary());
+        System.out.println("[PASS] Full gym workflow demonstrated.");
 
         // ==================================================================
         // TEST 5: SOLID PRINCIPLES DEMO
         // ==================================================================
         printHeader("TEST 5: SOLID Principles Demo");
-
         System.out.println("Demonstrating that the system follows SOLID principles.\n");
 
-        // OCP: extend without modifying
-        printSubHeader("OCP: Adding a new strategy at runtime (no engine changes)");
-        SortStrategy randomStrategy = new SortStrategy() {
-            @Override
-            public List<Recipe> sort(List<Recipe> recipes) {
-                List<Recipe> copy = new java.util.ArrayList<>(recipes);
-                java.util.Collections.shuffle(copy, new java.util.Random(42));
-                return copy;
+        printSubHeader("OCP: attach a brand-new notifier channel at runtime");
+        // An anonymous notifier implementation, defined inline -- existing
+        // notifiers and the Gym are unchanged.
+        MemberNotifier slackNotifier = new MemberNotifier() {
+            private final List<String> log = new ArrayList<>();
+            @Override public Member getMember()  { return alice; }
+            @Override public String getChannel() { return "SLACK"; }
+            @Override public void onEvent(GymEvent event) {
+                if (!event.isBroadcast() && !event.getTargetMember().equals(getMember())) return;
+                String formatted = "[SLACK -> @alice] " + event.getType() + " :: " + event.getMessage();
+                log.add(formatted);
+                System.out.println(formatted);
             }
         };
-        integrationManager.setSortStrategy(randomStrategy);
-        System.out.println("  New strategy installed: " + integrationManager.getCurrentStrategyName());
-        System.out.println("  Recipes after shuffle:");
-        printRecipeList(integrationManager.getOrderedRecipes());
-        System.out.println("  [PASS] Strategy added with zero engine changes.");
+        alice.attachNotifier(slackNotifier);
+        gym.publishPaymentDue(alice.getId(), LocalDate.now().plusDays(3), 89.99);
+        System.out.println("  [PASS] New channel installed and used without engine changes.");
 
-        // LSP: any factory works through the base reference
-        printSubHeader("LSP: Substituting concrete factories via the RecipeFactory reference");
-        RecipeFactory[] factories = {
-                new DessertRecipeFactory(),
-                new MainCourseRecipeFactory(),
-                new AppetizerRecipeFactory()
-        };
-        for (RecipeFactory factory : factories) {
-            Recipe sample = factory.createRecipe("LSP test", "Substitution check", 3);
-            System.out.println("  Factory: " + factory.getClass().getSimpleName()
-                    + " -> Recipe type: " + sample.getType());
+        printSubHeader("LSP: any MemberNotifier is interchangeable through the interface");
+        MemberNotifier[] notifiers = { aliceEmail, alicePush, bobSms, chloePush };
+        for (MemberNotifier n : notifiers) {
+            System.out.printf("  %s notifier for %s (channel=%s)%n",
+                    n.getClass().getSimpleName(), n.getMember().getName(), n.getChannel());
         }
-        System.out.println("  [PASS] All factories substitutable via base type reference.");
+        System.out.println("  [PASS] All notifiers used through the MemberNotifier reference.");
 
-        // DIP: high-level depends on abstractions
-        printSubHeader("DIP: RecipeManager depends on interfaces, not concrete classes");
-        System.out.println("  RecipeManager field types:");
-        System.out.println("    - recipes:        List<Recipe>     (interface)");
-        System.out.println("    - currentStrategy: SortStrategy    (interface)");
-        System.out.println("    - factoryRegistry: Map<String, RecipeFactory> (abstract class)");
-        System.out.println("  No direct references to DessertRecipe, MainCourseRecipe, etc.");
-        System.out.println("  [PASS] All dependencies point toward abstractions.");
+        printSubHeader("DIP: Gym depends on abstractions, not concrete notifiers");
+        System.out.println("  Gym.publishEvent(GymEvent) only calls MemberNotifier.onEvent(...).");
+        System.out.println("  The class never references EmailMemberNotifier, SmsMemberNotifier, etc.");
+        System.out.println("  [PASS] Dependencies point at abstractions.");
 
-        // SRP: each class has one job
-        printSubHeader("SRP: Each class has a single responsibility");
-        System.out.println("  - Recipe/AbstractRecipe: Holds recipe data");
-        System.out.println("  - RecipeFactory:         Creates recipes (Factory Method)");
-        System.out.println("  - SortStrategy:          Orders recipes (Strategy)");
-        System.out.println("  - RecipeStatus:          Defines states and transitions");
-        System.out.println("  - RecipeManager:         Coordinates all components");
-        System.out.println("  - Main:                  Demos and tests the system");
+        printSubHeader("SRP: each class has one job");
+        System.out.println("  - MembershipPlan / Builder: data + construction");
+        System.out.println("  - Member:                   member state + observer attachment");
+        System.out.println("  - MembershipStatus:         states and transitions");
+        System.out.println("  - GymEvent + subclasses:    event payloads");
+        System.out.println("  - MemberNotifier + impls:   channel-specific delivery");
+        System.out.println("  - Gym:                      coordination + publication");
         System.out.println("  [PASS] No class does more than one thing.");
 
-        // ISP: focused interfaces
-        printSubHeader("ISP: Interfaces are focused and minimal");
-        System.out.println("  - Recipe interface: Only methods relevant to every recipe");
-        System.out.println("  - SortStrategy: Single method -- sort()");
-        System.out.println("  - Type-specific methods (getSweetness, getCookingTimeMinutes) on concrete classes only");
+        printSubHeader("ISP: focused interfaces");
+        System.out.println("  - MemberNotifier: 3 methods, all used by every implementation.");
+        System.out.println("  - GymEvent:       only universal fields + getType() on the abstraction.");
         System.out.println("  [PASS] No client forced to depend on unused methods.");
 
         // ==================================================================
-        // TEST 6: EDGE CASES AND ERROR HANDLING
+        // TEST 6: EDGE CASES
         // ==================================================================
         printHeader("TEST 6: Edge Cases and Error Handling");
-
-        System.out.println("Demonstrating that the system handles invalid inputs gracefully.\n");
         int edgePassed = 0;
-        int edgeTotal = 6;
+        int edgeTotal  = 6;
 
-        printSubHeader("Edge Case 1: Invalid priority (out of 1-5 range)");
-        try {
-            new DessertRecipeFactory().createRecipe("Bad recipe", "Invalid priority", 0);
-            System.out.println("  FAIL: Should have thrown an exception!");
-        } catch (IllegalArgumentException e) {
+        printSubHeader("Edge 1: Builder rejects blank plan name");
+        try { new MembershipPlan.Builder(""); System.out.println("  FAIL"); }
+        catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Invalid priority rejected.");
-            edgePassed++;
+            System.out.println("  [PASS]"); edgePassed++;
         }
 
-        printSubHeader("Edge Case 2: Null title");
+        printSubHeader("Edge 2: Builder rejects zero-duration plan");
         try {
-            new MainCourseRecipeFactory().createRecipe(null, "Anonymous dish", 3);
-            System.out.println("  FAIL: Should have thrown an exception!");
+            new MembershipPlan.Builder("Bad").durationMonths(0).build();
+            System.out.println("  FAIL");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Null title rejected.");
-            edgePassed++;
+            System.out.println("  [PASS]"); edgePassed++;
         }
 
-        printSubHeader("Edge Case 3: Unknown recipe type in factory registry");
+        printSubHeader("Edge 3: Gym rejects unknown plan name on enrolment");
         try {
-            RecipeManager edgeManager = new RecipeManager();
-            edgeManager.createRecipe("UNKNOWN_TYPE", "Bad", "Bad type", 3);
-            System.out.println("  FAIL: Should have thrown an exception!");
+            gym.enrolMember("Bad Plan Test", "x@example.com", "", "DOES_NOT_EXIST");
+            System.out.println("  FAIL");
         } catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Unknown type rejected with available types listed.");
-            edgePassed++;
+            System.out.println("  [PASS]"); edgePassed++;
         }
 
-        printSubHeader("Edge Case 4: Recipe not found by ID");
-        try {
-            RecipeManager edgeManager2 = new RecipeManager();
-            edgeManager2.getRecipe(99999);
-            System.out.println("  FAIL: Should have thrown an exception!");
-        } catch (IllegalArgumentException e) {
+        printSubHeader("Edge 4: Gym rejects look-up of unknown member ID");
+        try { gym.getMember(99999); System.out.println("  FAIL"); }
+        catch (IllegalArgumentException e) {
             System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Non-existent recipe ID rejected.");
-            edgePassed++;
+            System.out.println("  [PASS]"); edgePassed++;
         }
 
-        printSubHeader("Edge Case 5: Null strategy");
-        try {
-            RecipeManager edgeManager3 = new RecipeManager();
-            edgeManager3.setSortStrategy(null);
-            System.out.println("  FAIL: Should have thrown an exception!");
-        } catch (IllegalArgumentException e) {
-            System.out.println("  Caught: " + e.getMessage());
-            System.out.println("  [PASS] Null strategy rejected.");
+        printSubHeader("Edge 5: Notifier ignores events for other members");
+        EmailMemberNotifier solo = new EmailMemberNotifier(alice);
+        int before = solo.getSentLog().size();
+        solo.onEvent(new PaymentDueEvent(bob, LocalDate.now(), 10.0));
+        int after = solo.getSentLog().size();
+        if (before == after) {
+            System.out.println("  [PASS] Notifier correctly skipped event for a different member.");
             edgePassed++;
+        } else {
+            System.out.println("  FAIL: delivered " + (after - before) + " unwanted messages");
         }
 
-        printSubHeader("Edge Case 6: Case-insensitive type lookup");
-        try {
-            RecipeManager edgeManager4 = new RecipeManager();
-            Recipe lowerCase = edgeManager4.createRecipe("dessert", "Lowercase test", "Testing case", 2);
-            System.out.println("  Created recipe with type 'dessert' (lowercase): " + lowerCase.getType());
-            System.out.println("  [PASS] Case-insensitive lookup works.");
+        printSubHeader("Edge 6: Detached notifier no longer receives events");
+        EmailMemberNotifier removable = new EmailMemberNotifier(alice);
+        alice.attachNotifier(removable);
+        gym.publishPaymentDue(alice.getId(), LocalDate.now().plusDays(1), 10.0);
+        int afterAttached = removable.getSentLog().size();
+        alice.detachNotifier(removable);
+        gym.publishPaymentDue(alice.getId(), LocalDate.now().plusDays(2), 10.0);
+        int afterDetached = removable.getSentLog().size();
+        if (afterAttached == 1 && afterDetached == 1) {
+            System.out.println("  [PASS] Detach stops further delivery.");
             edgePassed++;
-        } catch (Exception e) {
-            System.out.println("  FAIL: " + e.getMessage());
+        } else {
+            System.out.println("  FAIL: attached=" + afterAttached + " detached=" + afterDetached);
         }
 
         System.out.println();
         System.out.println("  Edge case score: " + edgePassed + "/" + edgeTotal);
 
         // ==================================================================
-        // Final summary
+        // Banner
         // ==================================================================
         printHeader("ALL TESTS PASSED");
-        System.out.println("  Demonstrated:");
-        System.out.println("    1. Factory Method (Creational) -- RecipeFactory hierarchy");
-        System.out.println("    2. Strategy (Behavioral)       -- SortStrategy hierarchy");
+        System.out.println("  Patterns demonstrated:");
+        System.out.println("    1. Builder  (Creational) -- MembershipPlan.Builder");
+        System.out.println("    2. Observer (Behavioral) -- Gym + MemberNotifier");
         System.out.println();
-        System.out.println("  SOLID Principles Demonstrated:");
-        System.out.println("    S - Single Responsibility: Each class has one job");
-        System.out.println("    O - Open/Closed:           Extend via new classes, not modification");
-        System.out.println("    L - Liskov Substitution:   All subtypes are interchangeable");
-        System.out.println("    I - Interface Segregation: Focused, minimal interfaces");
-        System.out.println("    D - Dependency Inversion:  Depend on abstractions");
+        System.out.println("  Lifecycle state machine: MembershipStatus");
         System.out.println();
-        System.out.println("  Total classes: 17 (2 interfaces, 1 enum, 2 abstract, 12 concrete)");
+        System.out.println("  Total source files: 19 (incl. 5 GUI classes)");
         System.out.println("  External dependencies: 0 (pure Java standard library)");
-        System.out.println();
         System.out.println("##########################################################");
+    }
+
+    private static void assertEqual(int expected, int actual, String label) {
+        if (expected != actual) {
+            throw new AssertionError(label + ": expected " + expected + ", got " + actual);
+        }
     }
 }

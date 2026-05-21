@@ -1,45 +1,58 @@
-# Activity Diagram -- Recipe lifecycle
+# Activity Diagram -- Member lifecycle
 
-End-to-end workflow of a recipe, from the moment a cook jots it down
-to the moment it is served to guests. The PlantUML source is in
-[recipe-lifecycle-activity.puml](recipe-lifecycle-activity.puml).
+End-to-end workflow of a gym member, from sign-up to expiration or
+cancellation. PlantUML source:
+[membership-lifecycle-activity.puml](membership-lifecycle-activity.puml).
 
 ```mermaid
 flowchart TD
-    A[Cook jots a new recipe] --> B[RecipeManager.createRecipe]
-    B --> C[Recipe enters DRAFT]
-    C --> D{Ready to trial?}
+    A[Build plan via MembershipPlan.Builder] --> B[Register plan in Gym catalogue]
+    B --> C[Member signs up]
+    C --> D[Gym.enrolMember -> Member in PENDING]
+    D --> E[Member attaches notifiers]
+    E --> F{First payment cleared?}
 
-    D -- no --> E[Transition to PAUSED]
-    E --> F[Wait for obstacle to clear]
-    F --> G[Transition back to DRAFT]
-    G --> D
+    F -- no  --> X[Transition to CANCELLED]
+    X --> Z((End))
 
-    D -- yes --> H[Transition to TESTING]
-    H --> I{Obstacle?}
-    I -- yes --> E
-    I -- no --> J{Reliable result?}
-    J -- no --> H
-    J -- yes --> K[Transition to APPROVED]
-    K --> L{Revisions needed?}
-    L -- yes --> H
-    L -- no --> M[Serve to guests]
-    M --> N[Transition to COOKED]
-    N --> Z((End))
+    F -- yes --> G[Transition to ACTIVE]
+    G --> H{Member needs a break?}
+
+    H -- yes --> I[Transition to FROZEN]
+    I --> J[Wait for resume]
+    J --> K[Transition back to ACTIVE]
+    K --> H
+
+    H -- no --> L{Within renewal grace window?}
+    L -- no  --> M[Stay ACTIVE]
+    M --> N[Gym may publish Payment/Promotion/ClassCancelled events]
+    N --> H
+
+    L -- yes --> O[Transition to EXPIRING]
+    O --> P[Gym publishes RenewalReminderEvent]
+    P --> Q{Member renews?}
+    Q -- yes --> R[Transition back to ACTIVE]
+    R --> H
+    Q -- no  --> S[Transition to EXPIRED]
+    S --> Z
 ```
 
-## How the activity diagram maps to the state machine
+## How the activity diagram maps to the code
 
 | Activity step | Concrete method call |
-|---|---|
-| Jot a recipe | `manager.createRecipe(type, title, description, priority)` |
-| Trial it | `manager.transitionRecipe(id, RecipeStatus.TESTING)` |
-| Finalise | `manager.transitionRecipe(id, RecipeStatus.APPROVED)` |
-| Revise | `manager.transitionRecipe(id, RecipeStatus.TESTING)` |
-| Pause | `manager.transitionRecipe(id, RecipeStatus.PAUSED)` |
-| Resume | `manager.transitionRecipe(id, RecipeStatus.DRAFT)` |
-| Serve and close | `manager.transitionRecipe(id, RecipeStatus.COOKED)` |
+|---------------|----------------------|
+| Build a plan | `new MembershipPlan.Builder(name).durationMonths(...).monthlyFee(...).build()` |
+| Register a plan | `gym.registerPlan(plan)` |
+| Enrol a member | `gym.enrolMember(name, email, phone, planName)` |
+| Attach notifier | `member.attachNotifier(new EmailMemberNotifier(member))` |
+| Activate | `member.setStatus(MembershipStatus.ACTIVE)` |
+| Freeze / Resume | `member.setStatus(MembershipStatus.FROZEN)` / `MembershipStatus.ACTIVE` |
+| Enter grace window | `member.setStatus(MembershipStatus.EXPIRING)` |
+| Renewal reminder | `gym.publishRenewalReminder(member.getId())` |
+| Renew | `member.setStatus(MembershipStatus.ACTIVE)` (renewal date is auto-pushed) |
+| Expire | `member.setStatus(MembershipStatus.EXPIRED)` |
+| Cancel | `member.setStatus(MembershipStatus.CANCELLED)` |
 
-Every step is validated by `AbstractRecipe.setStatus(...)`; an
-invalid call (e.g. trying to jump from `DRAFT` straight to `COOKED`)
-throws `IllegalArgumentException`.
+Every step is validated by `Member.setStatus(...)`; an invalid call
+(e.g. jumping from `PENDING` straight to `EXPIRED`) throws
+`IllegalArgumentException`.

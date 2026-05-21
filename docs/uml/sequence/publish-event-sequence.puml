@@ -1,0 +1,45 @@
+@startuml PublishEventSequence
+title Builder + Observer flows -- Sequence Diagram
+
+actor Staff
+participant "MembershipPlan.Builder" as Builder
+participant "MembershipPlan" as Plan
+participant "Gym" as Gym
+participant "Member alice" as Alice
+participant "EmailMemberNotifier" as Email
+participant "PushMemberNotifier" as Push
+
+== Build a plan (Builder pattern) ==
+
+Staff -> Builder : new Builder("Premium Annual")
+Staff -> Builder : durationMonths(12)
+Staff -> Builder : monthlyFee(89.99)
+Staff -> Builder : accessTier(PREMIUM)
+Staff -> Builder : includesClass("Yoga")
+Staff -> Builder : build()
+Builder -> Plan : new MembershipPlan(this)
+Plan --> Builder : plan
+Builder --> Staff : MembershipPlan
+
+== Register the plan + enrol a member ==
+
+Staff -> Gym : registerPlan(plan)
+Staff -> Gym : enrolMember("Alice", "alice@example.com", "", "Premium Annual")
+Gym -> Alice : new Member(...)
+Alice --> Gym : member
+Gym --> Staff : Member
+
+Staff -> Alice : attachNotifier(new EmailMemberNotifier(alice))
+Staff -> Alice : attachNotifier(new PushMemberNotifier(alice))
+
+== Publish a targeted event (Observer pattern) ==
+
+Staff -> Gym : publishPaymentDue(alice.id, dueDate, 89.99)
+Gym -> Alice : getNotifiers()
+Alice --> Gym : [email, push]
+Gym -> Email : onEvent(event)
+Email -> Email : append to sentLog
+Gym -> Push : onEvent(event)
+Push -> Push : append to sentLog
+
+@enduml

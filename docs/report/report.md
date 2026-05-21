@@ -1,11 +1,11 @@
-# Recipe Management System for Home Cooks
+# Gym Membership Management System
 
-## Design Patterns: Factory Method and Strategy
+## Design Patterns: Builder and Observer
 
 **Course:** SEN3006 -- Software Architecture
 **Project type:** Java Design Pattern Project
 **Language:** Java 8 (pure standard library, zero external dependencies)
-**Source files:** 17 (2 interfaces, 1 enum, 2 abstract classes, 12 concrete classes)
+**Source files:** 19 (1 abstract event class, 4 concrete events, 1 notifier interface, 3 concrete notifiers, 2 enums, Member, MembershipPlan + nested Builder, Gym, 2 non-GUI entry points, 5 GUI classes)
 **Deliverables:** Java source ZIP, compiled JAR, PDF report
 
 ---
@@ -28,75 +28,72 @@
 
 ### Background
 
-Home cooks routinely maintain a personal "recipe book" -- a private
-collection of dishes they have tried, refined, or want to attempt for an
-upcoming meal. As the collection grows, two patterns of complexity emerge.
-First, different courses (desserts, main courses, appetizers) have very
-different relevant attributes: a dessert's sweetness and chill time matter
-enormously, a main course's total cooking time drives dinner timing, and
-an appetizer's serving temperature decides whether it can be prepared
-hours ahead. Second, the right ordering for the collection depends on
-context -- which dish is most urgent, which has the earliest cook-by
-date, which course needs the most lead time. A single rigid sort order
-makes the system unusable for planning real meals.
+A modern gym is, from a software point of view, the intersection of two
+recurring complexity sources. The first is **product variability** -- a
+gym offers many subtly different membership plans (monthly vs annual,
+basic vs premium, with or without group classes, with or without freeze
+allowances, with or without personal training), and these plans differ
+along many dimensions rather than along a single "type" axis. The second
+is **communication fan-out** -- a gym must reach members through
+whichever channels they have opted into (email, SMS, push, perhaps
+in-app notifications), and the same internal event may need to be
+formatted very differently for each channel.
 
-These two complexities -- *what type is each item* and *how should the
-list be ordered* -- correspond to two well-studied design problems in
-object-oriented programming, both of which have classical pattern
-solutions. The system presented here applies both patterns to a real,
-working application that a cook could plausibly use to plan dinner
-parties or weeknight meals.
+Treated naively, these complexities pile up fast. Plan construction
+gravitates toward constructors with seven or eight positional
+parameters, or toward a sprawling factory that knows the rules for every
+variant. Notification logic gravitates toward `if (channel == "email")
+... else if (channel == "sms") ...` chains buried inside the business
+logic, and every new channel becomes a code-review-wide change.
+
+Both problems have textbook design-pattern solutions: the **Builder**
+pattern for constructing objects with many configurable attributes, and
+the **Observer** pattern for fanning a single event out to a set of
+interested subscribers. This project implements a complete gym
+membership management application that applies both patterns to a
+real, working system that demonstrates the patterns' value visibly --
+in scripted tests, in a console driver, and in a Swing GUI that lights
+up a live event log every time a notification is published.
 
 ### Motivation
 
-Naive implementations of recipe-management software tend to centralise
-type decisions inside long `switch` or `if`-`else` blocks (one branch
-per course type) and to hard-code one sort algorithm directly inside the
-collection class. Both choices look harmless for a system with three
-types and one ordering. They are deceptive: every new course type
-requires editing every conditional, and every new ordering means
-rewriting the collection's sort method while risking regressions in the
-old behaviour. The result is a system that is hostile to extension --
-the very situation the SOLID principles are designed to prevent.
-
-Design patterns offer a proven, well-documented way out. By delegating
-type-specific creation to a family of *factories*, and by delegating
-ordering to a family of swappable *strategies*, the system becomes open
-to extension and closed to modification: a new course type or a new
-ordering is a brand-new file, and no existing class needs to be touched.
-This project demonstrates that approach with a complete, working
-implementation.
+In an introductory architecture course the goal is not to ship a real
+SaaS product; it is to make pattern theory tangible. A gym membership
+system is well-suited to that goal because **the value of each pattern
+is immediately visible at the call site**. A `MembershipPlan.Builder`
+chain reads like a configuration list. An `EmailMemberNotifier` attached
+to a `Member` produces a printed message the very next time the gym
+publishes an event for that member. The patterns are not buried in
+infrastructure; they show up in the demo output and the GUI log.
 
 ### Objectives
 
-The objectives of this project are:
-
-1. **Demonstrate the Factory Method pattern** as a solution for flexible,
-   polymorphic object creation in a real-world domain.
-2. **Demonstrate the Strategy pattern** as a solution for interchangeable
-   algorithms that can be swapped at runtime.
-3. **Apply SOLID principles** throughout the design to achieve a system
-   that is maintainable, extensible, and testable.
-4. **Build a complete, working system** in pure Java with zero external
-   dependencies, proving that good architecture does not require complex
-   frameworks.
+1. **Demonstrate the Builder pattern** by constructing immutable
+   {@link MembershipPlan} instances with many optional, validated
+   attributes via a fluent inner class.
+2. **Demonstrate the Observer pattern** by publishing typed
+   {@link GymEvent} instances from a single `Gym` subject to a
+   per-member set of `MemberNotifier` observers.
+3. **Apply SOLID principles** throughout the design so the system is
+   maintainable, extensible, and testable -- in particular,
+   demonstrating Open/Closed live in the scripted test.
+4. **Build a complete, working system** in pure Java with zero
+   external dependencies, proving that good architecture does not
+   require frameworks.
 
 ### Solution overview
 
-The Recipe Management System implements two complementary design
-patterns. The **Factory Method** pattern (Creational) handles recipe
-creation: an abstract `RecipeFactory` declares the creation interface,
-and concrete factories (`DessertRecipeFactory`, `MainCourseRecipeFactory`,
-`AppetizerRecipeFactory`) encapsulate the instantiation logic for each
-recipe type. The **Strategy** pattern (Behavioral) handles recipe
-ordering: a `SortStrategy` interface defines a sorting contract, and
-concrete strategies (`UrgentFirstStrategy`, `DeadlineFirstStrategy`,
-`DessertFirstStrategy`) provide interchangeable algorithms. A central
-`RecipeManager` class coordinates both patterns, acting as the client of
-the Factory Method pattern and the context of the Strategy pattern. The
-system comprises 17 classes in total -- 2 interfaces, 1 enum, 2 abstract
-classes, and 12 concrete classes -- all built using only the Java
-standard library.
+The Gym Membership Management System has three architectural layers.
+The **domain layer** holds `Member`, `MembershipPlan` (with its nested
+`Builder`), `MembershipStatus`, and `AccessTier`. The **pattern layer**
+holds the Observer fabric (`GymEvent` and its four subclasses,
+`MemberNotifier` and its three concrete implementations) plus the
+Builder's nested class. The **coordination + presentation layer** holds
+the `Gym` class -- the single point of publication for every event --
+and the three entry points: `Main` (scripted demo), `GymManagementApp`
+(console menu), and `gui.GymManagerGUI` (Swing GUI). All three
+front-ends share the same engine; the patterns sit in the engine, not
+in the GUI.
 
 ---
 
@@ -104,159 +101,158 @@ standard library.
 
 ### Problem statement
 
-Build a recipe-management application that lets a home cook (1) record
-multiple types of recipes with type-specific information, (2) move each
-recipe through a workflow that captures the cook's real progress from
-"I jotted this down" to "I have served this to guests", and (3) view
-the collection in different useful orderings depending on the planning
-context. The design must accommodate new recipe types and new orderings
-without modifying any existing class.
+Build a gym membership management application that lets staff
+(1) define many distinct membership plans without proliferating
+constructors or factories, (2) enrol members against those plans,
+(3) move members through the natural membership lifecycle, and
+(4) notify members about gym events on whichever channel each member
+has subscribed to. The design must allow new plan attributes, new
+notification channels, and new event kinds to be added without
+modifying any existing class.
 
 ### Functional requirements
 
-| ID | Requirement | Demonstrated by |
-|---|---|---|
-| FR1 | The system must support at least three distinct recipe types, each with type-specific fields. | `DessertRecipe`, `MainCourseRecipe`, `AppetizerRecipe`. |
-| FR2 | Recipes are created through a factory mechanism so client code does not depend on concrete recipe classes. | `RecipeFactory`, three concrete factory subclasses, `RecipeManager.createRecipe(...)`. |
-| FR3 | The system must offer at least three different orderings of the same recipe list. | `UrgentFirstStrategy`, `DeadlineFirstStrategy`, `DessertFirstStrategy`. |
-| FR4 | The active ordering must be swappable at runtime. | `RecipeManager.setSortStrategy(SortStrategy)`. |
-| FR5 | Each recipe must transition through a lifecycle (draft / testing / approved / cooked / paused) with rules that prevent invalid transitions. | `RecipeStatus` enum and `AbstractRecipe.setStatus(...)`. |
-| FR6 | The system must validate inputs (non-blank titles, priority in 1-5, defined types, valid status transitions) and report errors clearly. | `IllegalArgumentException` thrown from `AbstractRecipe`, `RecipeManager`, `RecipeStatus`. |
-| FR7 | A user must be able to interact with the system in at least one of: scripted demo, console menu, graphical UI. | `Main`, `RecipeManagementApp`, `gui/RecipeManagerGUI`. |
+| ID  | Requirement | Demonstrated by |
+|-----|-------------|-----------------|
+| FR1 | The system must support membership plans with at least seven configurable attributes (name, duration, price, access tier, included classes, guest passes, freeze days, personal-training flag). | `MembershipPlan` + `MembershipPlan.Builder`. |
+| FR2 | Plans must be immutable once constructed; mutation is not allowed. | `MembershipPlan` fields are `private final`. |
+| FR3 | Members must be enrollable against a registered plan and identifiable by an auto-generated ID. | `Gym.enrolMember`, `AbstractRecipe`-style ID counter on `Member`. |
+| FR4 | Each member must transition through a lifecycle with rules that prevent invalid transitions. | `MembershipStatus` enum + `Member.setStatus` validation. |
+| FR5 | The system must publish at least four event kinds (payment due, renewal reminder, class cancellation, promotion). Both targeted and broadcast events must be supported. | `GymEvent` and the four concrete subclasses; `Gym.publishEvent`. |
+| FR6 | Each member must be able to subscribe to one or more notification channels (email, SMS, push, ...). Adding a new channel must not require touching the gym or other channels. | `MemberNotifier` interface; three concrete classes; `Member.attachNotifier`. |
+| FR7 | The system must offer at least three entry points: a scripted test demo, a console menu, and a GUI. | `Main`, `GymManagementApp`, `gui.GymManagerGUI`. |
 
 ### Non-functional requirements
 
-| ID | Requirement | Approach |
-|---|---|---|
-| NFR1 | Zero external dependencies. | Only `java.util.*`, `java.time.*`, `javax.swing.*`, `java.awt.*` from the standard library. |
+| ID   | Requirement | Approach |
+|------|-------------|----------|
+| NFR1 | Zero external dependencies. | Only `java.util.*`, `java.time.*`, `javax.swing.*`, `java.awt.*`. |
 | NFR2 | Build with a single `javac` command on Java 8+. | Default package; no Maven, Gradle, or build descriptor. |
-| NFR3 | Add a new recipe type or sort strategy without modifying any existing class. | All extension points (factories and strategies) are abstract; the manager registers factories by string key. |
-| NFR4 | Errors are surfaced to the user with actionable messages, not stack traces. | Validation in constructors and setters throws `IllegalArgumentException` with descriptive text. |
-| NFR5 | The system must be testable without a test framework. | `Main.java` contains six self-checking sections that print `[PASS]` markers. |
-| NFR6 | The GUI must be readable on Windows, macOS, and Linux. | Custom header renderer and Metal-styled buttons override platform L&F where it would otherwise hide background colours. |
+| NFR3 | Add a new plan attribute, a new notifier channel, or a new event kind without modifying any existing class. | All extension points are abstract; `Gym.publishEvent` dispatches by polymorphism. |
+| NFR4 | Errors are surfaced with actionable messages, not stack traces. | Validation in builders, constructors, and setters throws `IllegalArgumentException`. |
+| NFR5 | The system must be testable without a test framework. | `Main.java` contains six self-checking sections with `[PASS]` markers. |
+| NFR6 | The GUI must be readable on Windows, macOS, and Linux. | Custom table-header renderer and Metal-styled accent buttons override platform L&F where it would otherwise hide background colours. |
 
 ### Why architecture matters
 
-These requirements look mundane in isolation, but together they form an
-extensibility test. NFR3 specifically prohibits modifying existing
-classes when adding new types or orderings -- the Open/Closed Principle
-in plain text. Without an architectural approach, that requirement
-collides head-on with how most beginners would write a recipe app
-(centralised type switches, hard-coded sort). The patterns described in
-section 3.3 satisfy NFR3 by construction.
+Without the patterns described in section 3.3, a fourth membership
+plan attribute or a fourth notification channel would touch every
+caller, every conditional, and every test. With the patterns in place
+these changes are local: a new `MembershipPlan.Builder` setter or a new
+class implementing `MemberNotifier`. NFR3 is the explicit form of this
+guarantee, and Test 5 in `Main.java` proves it at runtime by attaching
+a brand-new anonymous notifier without recompiling the engine.
 
 ---
 
 ## 3.3 Design Pattern Explanation
 
-### 3.3.1 Factory Method Pattern (Creational)
+### 3.3.1 Builder Pattern (Creational)
 
 #### Definition
 
-The Factory Method pattern, as defined by Gamma et al. (1994), "defines
-an interface for creating an object, but lets subclasses decide which
-class to instantiate. Factory Method lets a class defer instantiation to
-subclasses." The pattern separates *what* is being created (the
-abstract Product) from *which* concrete class is instantiated (the
-Concrete Product chosen by a Concrete Creator).
+The Builder pattern, as introduced by Gamma et al. (1994), "separates
+the construction of a complex object from its representation so that
+the same construction process can create different representations".
+In its modern Java form (popularised by Bloch's *Effective Java*) the
+emphasis shifts slightly: the Builder is a fluent inner class that
+collects parameters one at a time and then validates them centrally in
+a final `build()` call that returns an immutable Product.
 
 #### When and why it is used
 
-Use the Factory Method pattern when:
+Use the Builder pattern when:
 
-- A class cannot anticipate the class of objects it must create.
-- A class wants its subclasses to specify the objects it creates.
-- Classes delegate responsibility to one of several helper subclasses,
-  and you want to localise the knowledge of which helper is the
-  delegate.
+- A class has many constructor parameters (Bloch's heuristic: three or
+  more, especially if several are optional).
+- Several parameters are optional and the call site should not have to
+  pass `null` or zero for them.
+- The object must be immutable after construction.
+- Validation rules cross multiple parameters and should run in a
+  single, well-defined place.
 
-In the Recipe Management System, the manager cannot hard-code "create
-a `DessertRecipe`" because it must be able to create main courses,
-appetizers and any future course type. By delegating creation to a
-family of factories, the manager works against the `RecipeFactory`
-abstraction and never references any concrete recipe class.
+`MembershipPlan` ticks every box: eight attributes, several optional,
+required immutability, cross-field validation (`durationMonths` must be
+positive, `monthlyFee` must be non-negative, `accessTier` must be set,
+etc.).
 
 #### Advantages
 
-- **Decoupling.** Client code depends on the abstract product
-  (`Recipe`) and the abstract creator (`RecipeFactory`), not on any
-  concrete subclass.
-- **Open/Closed.** Adding a new product type is a one-class change: a
-  new concrete factory and a new concrete recipe class.
-- **Single responsibility.** Each factory has exactly one job: create
-  one kind of recipe.
-- **Polymorphism.** Factories are themselves substitutable -- any
-  `RecipeFactory` reference can hold any concrete factory.
+- **Readable call sites.** Configuration looks vertical, not positional.
+- **Immutable product.** Once built, plans cannot drift; references can
+  be shared freely.
+- **Centralised validation.** Every plan that exists has been validated
+  by the same routine.
+- **Open/Closed for new attributes.** Adding a ninth attribute means
+  one new field on `MembershipPlan`, one new method on `Builder`, and
+  no changes to the call sites that do not need the new attribute.
 
 #### Why suitable for this project
 
-The assignment requires demonstrable extensibility for new recipe
-types. Factory Method makes that extensibility a structural property of
-the code, not a discipline applied by the developer. The two-tier API
-(a generic `createRecipe` method plus an optional type-specific method
-on each concrete factory) also illustrates a common real-world idiom:
-defaults for casual use, full control for advanced use.
+The assignment requires demonstrable extensibility for plan attributes.
+Builder makes that property structural rather than aspirational:
+extending the plan with a new field changes only the plan and the
+builder, never any caller. The pattern also makes the code at the
+demo's call site readable enough to put on a presentation slide.
 
 #### Real-world example
 
-Java's own `Calendar.getInstance()` method is a textbook Factory
-Method: it returns an abstract `Calendar` while the concrete class
-(`GregorianCalendar`, a Buddhist calendar, a Japanese calendar) is
-chosen by the runtime based on locale. Client code never names a
-concrete subclass.
+`java.lang.StringBuilder` is the JDK's canonical Builder. More
+contemporary examples include `HttpRequest.Builder` (JDK 11+),
+`Stream.Builder` (JDK 8+), and almost every fluent API in Spring's
+configuration layer.
 
-### 3.3.2 Strategy Pattern (Behavioral)
+### 3.3.2 Observer Pattern (Behavioral)
 
 #### Definition
 
-The Strategy pattern "defines a family of algorithms, encapsulates each
-one, and makes them interchangeable. Strategy lets the algorithm vary
-independently from clients that use it." (Gamma et al., 1994). A
-Context object holds a reference to the current Strategy and delegates
-algorithm-specific work to it.
+The Observer pattern "defines a one-to-many dependency between objects
+so that when one object changes state, all its dependents are notified
+and updated automatically" (Gamma et al., 1994). A Subject maintains a
+list of Observers and exposes a method (`attach`, `subscribe`,
+`addObserver`, ...) to register new ones; when the Subject's state
+changes, it walks the list and calls each Observer's `update` method.
 
 #### When and why it is used
 
-Use the Strategy pattern when:
+Use the Observer pattern when:
 
-- Many related classes differ only in their behaviour.
-- You need different variants of an algorithm.
-- An algorithm uses data clients should not know about.
-- A class defines many behaviours that appear as multiple conditional
-  statements in its operations.
+- An abstraction has two aspects, one dependent on the other.
+- A change to one object requires changing others, and you do not know
+  in advance how many objects need to change.
+- An object should be able to notify other objects without making
+  assumptions about who those objects are.
 
-In this project, the cook needs *several* orderings of the same recipe
-list -- and the right one depends on context. Strategy moves each
-ordering into its own class, leaving the manager free to delegate
-without knowing the algorithm details.
+The gym fits exactly: a single internal change (e.g., recognising that
+a payment is due) needs to reach an unknown set of subscribed channels
+for the affected member. The gym should not have to encode the cross
+product of (event kind) x (channel) anywhere.
 
 #### Advantages
 
-- **Runtime swap.** The current algorithm changes with a single
-  setter call.
-- **Open/Closed.** A new ordering is a new class. The manager and the
-  existing strategies are untouched.
-- **Eliminates conditionals.** No `if (strategy == "urgent")` chains
-  inside the manager.
-- **Testability.** Each strategy can be exercised in isolation by
-  passing it a list.
+- **Loose coupling.** The Subject knows the Observer interface only.
+- **Runtime subscription.** Observers attach and detach dynamically.
+- **Broadcast vs targeted, uniformly.** Both cases use the same
+  publish call; the Subject decides who is in scope.
+- **Open/Closed.** A new channel is a new Observer class. The Subject
+  is untouched.
 
 #### Why suitable for this project
 
-The project's requirements list three different orderings explicitly
-(FR3). Strategy maps cleanly: one interface, three classes, three
-algorithms. The test demo and the GUI both rely on runtime strategy
-swap to make the pattern visible -- the same recipe list reorders
-itself live when the strategy changes, which is the most direct way to
-*show* the pattern at work rather than merely talk about it.
+The four event kinds and three channels in this system produce a 12-cell
+matrix in a naive design. Observer collapses that matrix into 4 + 3
+classes, with the `Gym` class as the single point of dispatch. The
+GUI's notification log strip makes the pattern visible -- every event
+emitted by the engine becomes a printed line in the dark log at the
+bottom of the window.
 
 #### Real-world example
 
-Java's `Comparator` interface is a Strategy: `Collections.sort(list,
-new MyComparator())` lets the caller plug in any ordering algorithm
-without `Collections.sort` knowing the rule. The Recipe Management
-System's `SortStrategy` plays the same role, but at the manager level
-rather than at the level of a single `sort` call.
+`java.util.Observer` / `java.util.Observable` were the JDK's textbook
+implementations (deprecated in JDK 9 in favour of more modern
+abstractions). Swing's `ActionListener`, `PropertyChangeListener`, and
+`TableModelListener` are all Observer implementations. Reactive
+streams (`Flow.Subscriber` in JDK 9+) are a generalised Observer.
 
 ---
 
@@ -264,66 +260,50 @@ rather than at the level of a single `sort` call.
 
 The system is organised in three logical layers:
 
-1. **Domain layer** -- the `Recipe` interface, `AbstractRecipe` base
-   class, the three concrete recipe classes, and the `RecipeStatus`
-   enum.
-2. **Pattern layer** -- the `RecipeFactory` hierarchy (Factory Method)
-   and the `SortStrategy` hierarchy (Strategy).
-3. **Coordination + presentation layer** -- `RecipeManager` (the
-   single coordinator) and three different entry points: `Main`
-   (scripted demo), `RecipeManagementApp` (console menu), and the
-   Swing GUI (`gui/RecipeManagerGUI`).
+1. **Domain layer** -- `Member`, `MembershipPlan` (with nested `Builder`),
+   `MembershipStatus` enum, `AccessTier` enum.
+2. **Pattern layer** -- `GymEvent` abstract class and four concrete events
+   (`PaymentDueEvent`, `RenewalReminderEvent`, `ClassCancelledEvent`,
+   `PromotionEvent`); `MemberNotifier` interface and three concrete
+   implementations (`EmailMemberNotifier`, `SmsMemberNotifier`,
+   `PushMemberNotifier`).
+3. **Coordination + presentation layer** -- `Gym` (the single coordinator),
+   `Main` (scripted demo), `GymManagementApp` (console menu), and the
+   five-file Swing GUI under `gui/`.
 
 ### Class diagram
 
-The class diagram appears in [docs/uml/class/class-diagram.md](../uml/class/class-diagram.md)
-(Mermaid render) and [docs/uml/class/recipe-management-class.puml](../uml/class/recipe-management-class.puml)
-(PlantUML source). It shows:
-
-- `Recipe` (interface) and `AbstractRecipe` (abstract class) with three
-  concrete recipe subclasses.
-- `RecipeFactory` (abstract) with three concrete factories.
-- `SortStrategy` (interface) with three concrete strategies.
-- `RecipeStatus` (enum) with the state-machine transitions.
-- `RecipeManager` holding references to all three abstractions and
-  acting as the client/context for both patterns.
+See [docs/uml/class/class-diagram.md](../uml/class/class-diagram.md)
+(Mermaid render) and
+[docs/uml/class/gym-management-class.puml](../uml/class/gym-management-class.puml)
+(PlantUML source).
 
 ### Sequence diagram
 
-The sequence diagram in
-[docs/uml/sequence/sequence-diagram.md](../uml/sequence/sequence-diagram.md)
-walks through a typical user flow: the user asks the manager to create a
-recipe, the manager looks up the right factory, the factory returns a
-new recipe of the correct concrete type, and then the user later asks
-for the ordered list, prompting the manager to delegate to the current
-strategy.
+The two principal flows -- building a plan via the Builder and
+publishing an event to a member's attached notifiers -- are diagrammed
+in [docs/uml/sequence/sequence-diagram.md](../uml/sequence/sequence-diagram.md).
 
 ### State diagram
 
-The state diagram in
-[docs/uml/activity/state-diagram.md](../uml/activity/state-diagram.md)
-shows the five states of `RecipeStatus` and every allowed transition.
+The membership lifecycle is rendered in
+[docs/uml/activity/state-diagram.md](../uml/activity/state-diagram.md).
 
 ### Activity diagram
 
-The activity diagram in
-[docs/uml/activity/activity-diagram.md](../uml/activity/activity-diagram.md)
-shows the end-to-end workflow of a recipe from creation through testing,
-approval, optional pausing, and final cooking.
+The end-to-end flow of a member from enrolment to expiration appears in
+[docs/uml/activity/activity-diagram.md](../uml/activity/activity-diagram.md).
 
 ### Use-case diagram
 
-The use-case diagram in
-[docs/uml/usecase/usecase-diagram.md](../uml/usecase/usecase-diagram.md)
-enumerates every operation a user can perform (create, view, sort,
-transition, filter, remove, summarise).
+Every operation a gym staffer can perform is enumerated in
+[docs/uml/usecase/usecase-diagram.md](../uml/usecase/usecase-diagram.md).
 
 ### Component and deployment diagrams
 
-The component diagram
-([docs/uml/class/component-diagram.md](../uml/class/component-diagram.md))
-shows the three logical layers. The deployment diagram
-([docs/uml/class/deployment-diagram.md](../uml/class/deployment-diagram.md))
+[docs/uml/class/component-diagram.md](../uml/class/component-diagram.md)
+shows the three logical layers.
+[docs/uml/class/deployment-diagram.md](../uml/class/deployment-diagram.md)
 shows that the entire system runs in a single JVM with three optional
 entry points.
 
@@ -331,85 +311,84 @@ entry points.
 
 ## 3.5 Implementation and Code Explanation
 
-### The Product hierarchy
+### The Product hierarchy (Builder side)
 
-`Recipe` (interface) declares the methods every recipe must support
-(id, title, description, status, priority, cook-by date, creation
-timestamp, type identifier). `AbstractRecipe` implements every method
-except `getType()`, providing shared state (auto-incrementing ID,
-default `DRAFT` status, validation of priority/title) and a `toString`
-that subclasses extend.
+`MembershipPlan` is a final class with eight private-final fields and
+no setters -- once built, a plan is immutable. The nested
+`MembershipPlan.Builder` is a static inner class that holds a working
+copy of every attribute, exposes one fluent setter per attribute, and
+validates the entire set inside `build()`. The constructor is private;
+only the Builder can construct plans.
 
-The three concrete recipe classes each add type-specific data:
+The decision to nest the Builder inside `MembershipPlan` is deliberate.
+It keeps the Product and the Builder in one file, avoids exposing the
+private constructor, and signals the relationship in the type name
+(`MembershipPlan.Builder`). The pattern reads identically to
+`StringBuilder` / `String`, `HttpRequest.Builder` / `HttpRequest`, and
+the many other examples in the JDK.
 
-- `DessertRecipe`: sweetness level (LOW/MEDIUM/HIGH/EXTREME) and
-  preparation notes.
-- `MainCourseRecipe`: total cooking time in minutes and a 1-10
-  satisfaction rating.
-- `AppetizerRecipe`: serving temperature (COLD/HOT/ROOM) and the
-  occasion label.
+### Member and the lifecycle
 
-### The Factory hierarchy
+`Member` holds the universal member data (id, name, email, phone, join
+timestamp, current plan, status, renewal date) plus a list of attached
+`MemberNotifier` instances. `setStatus(...)` consults
+`MembershipStatus.canTransitionTo(...)` and throws
+`IllegalArgumentException` if the transition is not allowed. Side
+effect: when moving back to `ACTIVE` from `EXPIRING` (a renewal) or
+from `FROZEN` (a resume), the renewal date is pushed forward by the
+plan duration.
 
-`RecipeFactory` is an abstract class with one abstract method,
-`createRecipe(title, description, priority)`, plus a template method
-`createRecipeWithDeadline` that calls `createRecipe` and then sets the
-deadline. Three concrete factories override `createRecipe` to instantiate
-their specific recipe type with sensible defaults, and each exposes a
-type-specific factory method (`createDessertRecipe`,
-`createMainCourseRecipe`, `createAppetizerRecipe`) for callers that need
-full control of the type-specific fields.
+### The event hierarchy (Observer side)
 
-### The Strategy hierarchy
+`GymEvent` is an abstract base class with three universal fields
+(`timestamp`, `targetMember`, `message`). Four concrete subclasses add
+the type-specific data they need: `PaymentDueEvent` (date + amount),
+`RenewalReminderEvent` (renewal date), `ClassCancelledEvent` (class
+name + class date, broadcastable), `PromotionEvent` (discount percent,
+always a broadcast).
 
-`SortStrategy` is an interface with a single method,
-`sort(List<Recipe>) -> List<Recipe>`. Three concrete strategies
-implement it:
+`isBroadcast()` returns `true` when `targetMember` is null. The `Gym`
+uses this flag to choose between "iterate the target's notifiers" and
+"iterate every member's notifiers".
 
-- `UrgentFirstStrategy` sorts by priority descending.
-- `DeadlineFirstStrategy` sorts by cook-by date ascending with `null`
-  dates pushed to the end.
-- `DessertFirstStrategy` is a two-phase sort: all desserts first
-  (ranked by sweetness), then all other recipes by priority
-  descending. It demonstrates that a strategy can incorporate
-  type-aware logic without violating the interface contract.
+### The Observer hierarchy
+
+`MemberNotifier` is a three-method interface: `getMember()`,
+`getChannel()`, and `onEvent(GymEvent)`. Each concrete implementation
+wraps one member and one channel. `onEvent` is responsible for
+ignoring events that target a different member -- broadcasts are
+delivered to every attached notifier.
+
+Each concrete notifier also keeps an internal `sentLog` of every
+formatted message it has emitted. The log is what the test demo and the
+GUI read to prove that the Observer pattern actually delivered the
+event -- nothing is faked, every line in the log corresponds to a real
+call to `onEvent`.
 
 ### The coordinator
 
-`RecipeManager` is the single class that ties everything together. Its
-fields point only at abstractions:
-
-```java
-private final List<Recipe>               recipes;
-private SortStrategy                     currentStrategy;
-private final Map<String, RecipeFactory> factoryRegistry;
-```
-
-The factory registry is a simplified Service Locator -- a small twist
-that lets callers create a recipe by string type ("DESSERT",
-"MAIN_COURSE", "APPETIZER") rather than having to know which factory
-class to instantiate. Registering a new type is a one-line call;
-swapping the sort strategy is a one-line setter.
-
-### The state machine
-
-`RecipeStatus` is an enum where each constant overrides
-`allowedTransitions()` to declare which target states it may move to.
-`AbstractRecipe.setStatus` consults this method before assigning the
-new status, throwing `IllegalArgumentException` if the transition is
-not allowed. This is a lightweight State pattern -- the rules live with
-the states themselves, not in a sprawling validator class.
+`Gym` is the single class that ties everything together. It owns the
+plan catalogue (built outside via the Builder), the member list, and
+the chronological event journal. The two key methods are
+`registerPlan(MembershipPlan)` (Builder consumer) and
+`publishEvent(GymEvent)` (Observer subject). Both methods touch only
+abstractions -- `Gym` never references `EmailMemberNotifier` or
+`PaymentDueEvent` directly.
 
 ### The three entry points
 
-- `Main.java` runs six labelled test sections that exercise every
-  pattern and edge case, printing `[PASS]` for each successful check.
-- `RecipeManagementApp.java` offers a console menu so the cook can
-  drive the system interactively.
-- `gui/RecipeManagerGUI.java` opens a Swing window. The form on the
-  right calls `RecipeManager.createRecipe(...)`, the table on the left
-  binds to `getOrderedRecipes()`, and the *Sort by* dropdown installs a
-  new strategy at runtime.
+- `Main.java` runs six labelled test sections that exercise both
+  patterns, the lifecycle, and six edge cases, printing `[PASS]` for
+  each successful check.
+- `GymManagementApp.java` offers a console menu so a non-graphical
+  demo can drive every public API call.
+- `gui.GymManagerGUI` opens a Swing window. The member table on the
+  left is bound to `Gym.getAllMembers()`. The enrolment form on the
+  right pulls plan names from `Gym.getAllPlans()`. The lifecycle and
+  notification buttons at the bottom call the matching
+  `Gym.changeMemberStatus` and `Gym.publish*` methods. The dark log
+  strip at the very bottom records every event the gym publishes,
+  rendered identically to the messages each notifier produces.
 
 ---
 
@@ -417,21 +396,21 @@ the states themselves, not in a sprawling validator class.
 
 ### Test methodology
 
-The project uses a lightweight, framework-free testing approach. The
-`Main.java` file contains six self-checking test sections, each of which
-prints a clearly labelled `[PASS]` line on success and would print a
-`FAIL` line if a check failed. This style is appropriate for a
-classroom project where the goal is a visible, presentable demonstration
-rather than an industrial test pipeline.
+The project uses a lightweight, framework-free testing approach.
+`Main.java` contains six self-checking sections, each of which prints a
+clearly-labelled `[PASS]` line on success and a `FAIL` line on failure.
+This style is appropriate for a classroom project where the goal is a
+visible, presentable demonstration rather than an industrial test
+pipeline.
 
 | Test | Verifies |
-|---|---|
-| Test 1 -- Factory Method demo | Each factory creates the correct recipe subtype polymorphically through the abstract `RecipeFactory` reference. |
-| Test 2 -- Strategy demo | The same recipe list reorders correctly under all three strategies, including with null cook-by dates and extreme sweetness levels. |
-| Test 3 -- Lifecycle demo | Every valid transition succeeds, every invalid transition raises `IllegalArgumentException`, and the terminal state `COOKED` blocks all further transitions. |
-| Test 4 -- Integration demo | The full workflow -- create, set deadlines, transition, filter, remove, summarise -- runs end to end. |
-| Test 5 -- SOLID demo | A brand-new `SortStrategy` (defined inline as an anonymous class) is installed at runtime, proving Open/Closed in action. All five SOLID principles are demonstrated with code. |
-| Test 6 -- Edge cases | Six failure modes are exercised: invalid priority, null title, unknown recipe type, missing ID, null strategy, case-insensitive type lookup. |
+|------|----------|
+| 1 -- Builder demo | Three distinct plans built via fluent chains; each is immutable; the basic plan uses defaults, the premium plan exercises every optional attribute. |
+| 2 -- Observer demo | A targeted event reaches only the affected member's notifiers; broadcast events reach every attached notifier across the gym; channel-specific formatting is applied. Assertions on the per-notifier `sentLog` sizes confirm correct delivery counts. |
+| 3 -- Lifecycle demo | Every allowed `MembershipStatus` transition succeeds; every disallowed transition throws `IllegalArgumentException`; terminal states (`EXPIRED`, `CANCELLED`) reject every onward transition. |
+| 4 -- Integration demo | A full workflow -- register plans (Builder), enrol members, attach notifiers, walk the lifecycle, publish targeted and broadcast events, summarise. |
+| 5 -- SOLID demo | A brand-new `MemberNotifier` (defined inline as an anonymous class) is attached to a member at runtime, and the next published event reaches it. Open/Closed and Dependency Inversion are exercised live. |
+| 6 -- Edge cases | Six guarded failure modes: builder rejects blank name, builder rejects zero duration, gym rejects unknown plan name, gym rejects unknown member ID, notifier ignores events for other members, detach stops further delivery. |
 
 ### How to run
 
@@ -440,16 +419,18 @@ javac -d bin src/main/java/*.java src/main/java/gui/*.java
 java -cp bin Main
 ```
 
-The program ends with `ALL TESTS PASSED`. Detailed expected output is
-available in [docs/design/test-documentation.md](../design/test-documentation.md).
+The program ends with `ALL TESTS PASSED`. Detailed test documentation
+is in
+[docs/design/test-documentation.md](../design/test-documentation.md).
 
 ### GUI demonstration
 
 The Swing GUI offers a visual companion to the scripted tests. The
-**Demos** menu loads the same data sets the test sections build, and
-the **Sort by** dropdown swaps the live strategy. Watching the table
-reorder itself in real time is the most direct demonstration of the
-Strategy pattern.
+**Demos** menu loads the same data sets the test sections build, the
+lifecycle buttons at the bottom drive `Member.setStatus(...)`, and the
+notification buttons publish events through `Gym.publishEvent(...)`.
+Every event the gym emits is appended to the dark log strip in real
+time, with channel-specific formatting visible side by side.
 
 ---
 
@@ -458,42 +439,43 @@ Strategy pattern.
 ### Quantitative results
 
 | Metric | Value |
-|---|---|
-| Source files | 17 (`.java`) |
-| Production code lines | ~1,500 |
+|--------|-------|
+| Source files | 19 (`.java`) |
+| Production code lines | ~1,800 |
 | External dependencies | 0 |
 | Build commands required | 1 (`javac`) |
 | Automated test sections | 6 |
 | Edge cases covered | 6 |
-| Recipe types supported | 3 (extensible) |
-| Sort strategies supported | 3 (extensible) |
-| Lifecycle states | 5 |
-| Allowed transitions | 9 (out of 25 possible state pairs) |
+| Membership-plan attributes | 8 (extensible) |
+| Notification channels | 3 (extensible) |
+| Event kinds | 4 (extensible) |
+| Lifecycle states | 6 |
+| Allowed transitions | 9 (out of 30 possible state pairs) |
 
 ### Pattern verification
 
 Both target patterns are demonstrably implemented:
 
-- **Factory Method.** The `RecipeManager` never references a concrete
-  recipe class. Searching the source tree for `new DessertRecipe`,
-  `new MainCourseRecipe`, or `new AppetizerRecipe` outside their own
-  factory classes returns zero hits. Adding a hypothetical `DrinkRecipe`
-  requires creating two files (a recipe and a factory) and one
-  `registerFactory(...)` call.
-- **Strategy.** The `RecipeManager` never references a concrete
-  strategy class -- only the `SortStrategy` interface. The Test 5 demo
-  installs a brand-new anonymous strategy and the system uses it
-  immediately, with no recompilation of the manager.
+- **Builder.** Outside `MembershipPlan.Builder` itself, no other class
+  invokes the private constructor of `MembershipPlan`. A textual search
+  for `new MembershipPlan(` returns one hit and it lives inside the
+  Builder. Adding a hypothetical ninth attribute (e.g., "guest passes
+  per quarter") is a one-class change to `MembershipPlan` plus one new
+  setter on `Builder` -- no caller breaks.
+- **Observer.** `Gym.publishEvent(...)` calls only `MemberNotifier.onEvent(...)`
+  through the interface reference. The test demo installs a brand-new
+  anonymous `MemberNotifier` at runtime, attaches it to a member, and
+  the next published event reaches it without recompiling the engine.
 
 ### SOLID assessment
 
 | Principle | How the system satisfies it |
-|---|---|
-| **S**ingle Responsibility | Each class has one job: factories create, strategies sort, the manager coordinates, the enum models the state machine, the recipes hold data. |
-| **O**pen/Closed | New recipe types or new sort strategies are added by writing new classes only. Test 5 demonstrates this live. |
-| **L**iskov Substitution | Every concrete recipe is usable as a `Recipe`; every factory as a `RecipeFactory`; every strategy as a `SortStrategy`. The test suite substitutes them explicitly. |
-| **I**nterface Segregation | `SortStrategy` has a single method; `Recipe` has only methods relevant to every recipe; type-specific accessors live on concrete classes. |
-| **D**ependency Inversion | `RecipeManager` depends on three abstractions (`Recipe`, `RecipeFactory`, `SortStrategy`) and on no concrete class. |
+|-----------|-----------------------------|
+| **S**ingle Responsibility | Each class has one job: Builder constructs, Member holds state, MembershipStatus governs transitions, each event subclass carries one kind of payload, each notifier writes one channel, the Gym coordinates and publishes. |
+| **O**pen/Closed | New plan attributes, new event kinds, new notification channels are all single-file additions. Test 5 demonstrates this live with an anonymous notifier installed at runtime. |
+| **L**iskov Substitution | Every notifier works through the `MemberNotifier` reference; every event works through the `GymEvent` reference. The test demo substitutes them explicitly. |
+| **I**nterface Segregation | `MemberNotifier` has three methods, all used by every implementation. `GymEvent` exposes only universal fields plus `getType()`. Type-specific accessors stay on concrete events. |
+| **D**ependency Inversion | `Gym` references only abstractions (`MemberNotifier`, `GymEvent`, `Member`). No `new EmailMemberNotifier(...)` outside the demo and the GUI's wiring. |
 
 ### Limitations and future work
 
@@ -501,33 +483,36 @@ The system intentionally stays small to keep the focus on the two
 patterns. Three obvious extensions would not change the architecture
 but would broaden the demo:
 
-1. **Persistence.** Today the recipe list lives only in memory. A
-   `RecipeRepository` abstraction with JSON or SQLite backends would
-   add a third pattern (Repository) without disturbing the existing
+1. **Persistence.** Today the gym lives only in memory. A
+   `GymRepository` abstraction with JSON or SQLite backends would add
+   a third pattern (Repository) without disturbing the existing
    classes.
-2. **Search and tags.** A `Specification` pattern would let users
-   combine filters (e.g. "vegan AND quick AND cook-by-this-Saturday").
-3. **Internationalisation.** Recipe titles and descriptions are stored
-   as plain strings. A resource-bundle-based message catalogue would
-   let the GUI run in multiple languages.
+2. **Scheduling.** A `MembershipScheduler` running on a timer could
+   raise renewal-reminder events automatically based on each member's
+   renewal date.
+3. **Internationalisation.** Notification messages are stored as plain
+   strings. A resource-bundle-based message catalogue would let the
+   gym run in multiple languages.
 
 ---
 
 ## 3.8 Conclusion
 
-This project delivers a complete, working Recipe Management System that
-satisfies every functional and non-functional requirement of the
-SEN3006 assignment. Two design patterns -- Factory Method and Strategy
+This project delivers a complete, working Gym Membership Management
+System that satisfies every functional and non-functional requirement
+of the SEN3006 assignment. Two design patterns -- Builder and Observer
 -- form the architectural spine, and a lightweight State machine adds a
-third pattern incidentally. The SOLID principles are not retro-fitted
-or claimed; they are visible structural properties of the code, each
-demonstrated by at least one test section.
+third pattern incidentally inside `MembershipStatus`. The SOLID
+principles are not retro-fitted or claimed; they are visible structural
+properties of the code, each demonstrated by at least one test section.
 
 Three entry points (scripted demo, console menu, Swing GUI) prove that
 the same engine supports very different presentation layers without
-modification. The Strategy pattern is especially striking in the GUI:
-swapping a single dropdown reorders the table live, and adding a
-brand-new strategy at runtime in Test 5 requires zero changes to any
+modification. The Observer pattern is especially striking in the GUI:
+publishing an event from a button click immediately appears in the
+notification log strip at the bottom of the window, formatted
+differently for each channel attached to the affected member. Adding a
+brand-new notifier at runtime in Test 5 requires zero changes to any
 existing class. That visible extensibility is the project's main
 pedagogical message: good architecture is not decoration, it is the
 property of a system that says yes to the next reasonable change.
@@ -539,18 +524,18 @@ property of a system that says yes to the next reasonable change.
 1. Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994).
    *Design Patterns: Elements of Reusable Object-Oriented Software*.
    Addison-Wesley. (The original "Gang of Four" book; defines the
-   Factory Method and Strategy patterns used here.)
-2. Martin, R. C. (2002). *Agile Software Development, Principles,
+   Builder and Observer patterns used here.)
+2. Bloch, J. (2018). *Effective Java*, 3rd ed. Addison-Wesley.
+   (Items 2, 17, 20, 34: builders for many parameters, minimising
+   mutability, interface design, enum types -- all applied in this
+   project.)
+3. Martin, R. C. (2002). *Agile Software Development, Principles,
    Patterns, and Practices*. Prentice Hall. (Introduced the SOLID
    acronym and the Open/Closed motivation used in section 3.3.)
-3. Freeman, E., Robson, E., Bates, B., & Sierra, K. (2004).
+4. Freeman, E., Robson, E., Bates, B., & Sierra, K. (2004).
    *Head First Design Patterns*. O'Reilly. (Accessible treatment of
-   Factory Method and Strategy with similar Java examples.)
-4. Oracle Corporation. (n.d.). *The Java Tutorials -- Collections,
+   the Builder and Observer patterns with similar Java examples.)
+5. Oracle Corporation. (n.d.). *The Java Tutorials -- Collections,
    Enums, Generics, Swing*. https://docs.oracle.com/javase/tutorial/
    (Reference for the standard-library features used: collections,
    `LocalDate`, enum methods, Swing widgets.)
-5. Bloch, J. (2018). *Effective Java*, 3rd ed. Addison-Wesley.
-   (Items 1, 17, 20, 34: static factory methods, minimising
-   mutability, interface design, enum types -- all applied in this
-   project.)

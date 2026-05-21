@@ -4,71 +4,100 @@ import java.util.List;
 
 /**
  * Pre-built scenarios that mirror the data setups in {@link Main}'s test
- * sections.
+ * sections. The GUI binds these to menu items so the professor can load a
+ * canonical demo with one click and then explore the same data set
+ * interactively.
  *
- * <p>Each method takes a {@link RecipeManager}, clears its recipes, and
- * populates it with the same data the corresponding {@code Main.java} test
- * builds. This lets the professor see the canonical demos inside the GUI on
- * demand without losing the freedom to add custom recipes.</p>
- *
- * <p><strong>Independent of {@link Main}:</strong> these methods do not call
- * {@code Main} or extract code from it. They duplicate the data setup here so
- * {@code Main.java} stays untouched.</p>
+ * <p>Each method first calls {@link #clearAll(Gym)} so the demos compose
+ * cleanly even if the user has been clicking around beforehand.</p>
  */
 public final class DemoScenarios {
 
     private DemoScenarios() {}
 
-    /** Removes every recipe currently in the manager. */
-    public static void clearAll(RecipeManager manager) {
-        // Copy IDs first to avoid concurrent-modification issues.
+    /** Removes every member from the gym (the plan catalogue is preserved). */
+    public static void clearAll(Gym gym) {
         List<Integer> ids = new ArrayList<>();
-        for (Recipe r : manager.getAllRecipes()) ids.add(r.getId());
-        for (int id : ids) manager.removeRecipe(id);
+        for (Member m : gym.getAllMembers()) ids.add(m.getId());
+        for (int id : ids) gym.removeMember(id);
     }
 
-    /** Mirrors Main.java Test 2: 5 recipes with cook-by dates + sweetness for sorting demos. */
-    public static void loadStrategyDemo(RecipeManager manager) {
-        clearAll(manager);
-        manager.createRecipe("DESSERT",     "Lemon tart",          "Bright citrus tart",            5);
-        manager.createRecipe("MAIN_COURSE", "Mushroom risotto",    "Creamy arborio rice",           2);
-        manager.createRecipe("DESSERT",     "Vanilla panna cotta", "Set cream with vanilla",        1);
-        manager.createRecipe("APPETIZER",   "Bruschetta",          "Toasted bread with tomato",     3);
-        manager.createRecipe("MAIN_COURSE", "Beef bourguignon",    "Slow-braised beef in red wine", 4);
-
-        List<Recipe> all = manager.getAllRecipes();
-        all.get(0).setDeadline(LocalDate.of(2026, 5, 1));
-        all.get(1).setDeadline(LocalDate.of(2026, 6, 15));
-        all.get(2).setDeadline(null);
-        all.get(3).setDeadline(LocalDate.of(2026, 4, 20));
-        all.get(4).setDeadline(LocalDate.of(2026, 5, 10));
-
-        if (all.get(0) instanceof DessertRecipe) {
-            ((DessertRecipe) all.get(0)).setSweetness("EXTREME");
-        }
+    /**
+     * Registers the three sample plans on an empty gym, no-op if they
+     * already exist.
+     */
+    public static void seedPlans(Gym gym) {
+        if (gym.getAllPlans().size() >= 3) return;
+        gym.registerPlan(new MembershipPlan.Builder("Basic Monthly")
+                .durationMonths(1).monthlyFee(29.99).accessTier(AccessTier.BASIC).build());
+        gym.registerPlan(new MembershipPlan.Builder("Standard Six-Month")
+                .durationMonths(6).monthlyFee(49.99).accessTier(AccessTier.STANDARD)
+                .includesClass("Yoga").includesClass("Spinning").freezeDaysPerYear(30).build());
+        gym.registerPlan(new MembershipPlan.Builder("Premium Annual")
+                .durationMonths(12).monthlyFee(89.99).accessTier(AccessTier.PREMIUM)
+                .includesClass("Yoga").includesClass("Spinning").includesClass("HIIT")
+                .includesClass("Pilates").guestPassesPerMonth(4).freezeDaysPerYear(60)
+                .personalTrainerIncluded(true).build());
     }
 
-    /** Mirrors Main.java Test 3: a single recipe ready for state-transition demos. */
-    public static void loadLifecycleDemo(RecipeManager manager) {
-        clearAll(manager);
-        manager.createRecipe("DESSERT", "Cheesecake", "New York style baked cheesecake", 3);
+    /** Mirrors Main test 2: three members with mixed channels and a couple of events. */
+    public static void loadObserverDemo(Gym gym) {
+        seedPlans(gym);
+        clearAll(gym);
+
+        Member alice = gym.enrolMember("Alice Aydin",   "alice@example.com", "+90-555-0001", "Premium Annual");
+        Member bob   = gym.enrolMember("Bob Bektas",    "bob@example.com",   "+90-555-0002", "Standard Six-Month");
+        Member chloe = gym.enrolMember("Chloe Celikel", "chloe@example.com", "+90-555-0003", "Basic Monthly");
+
+        alice.attachNotifier(new EmailMemberNotifier(alice));
+        alice.attachNotifier(new PushMemberNotifier(alice));
+
+        bob.attachNotifier(new SmsMemberNotifier(bob));
+
+        chloe.attachNotifier(new EmailMemberNotifier(chloe));
+        chloe.attachNotifier(new SmsMemberNotifier(chloe));
+        chloe.attachNotifier(new PushMemberNotifier(chloe));
+
+        gym.publishPaymentDue(alice.getId(), LocalDate.now().plusDays(7), 89.99);
+        bob.setStatus(MembershipStatus.ACTIVE);
+        bob.setStatus(MembershipStatus.EXPIRING);
+        gym.publishRenewalReminder(bob.getId());
+        gym.publishClassCancellation("Spinning", LocalDate.now().plusDays(1));
+        gym.publishPromotion(20.0, "20% off Premium plans until the end of the month!");
     }
 
-    /** Mirrors Main.java Test 4: 5-recipe mix with some transitions pre-applied. */
-    public static void loadIntegrationDemo(RecipeManager manager) {
-        clearAll(manager);
-        Recipe r1 = manager.createRecipe("MAIN_COURSE", "Pad thai",  "Thai stir-fried noodles",           5);
-        Recipe r2 = manager.createRecipe("DESSERT",     "Pavlova",   "Meringue with fruit",               3);
-        Recipe r3 = manager.createRecipe("MAIN_COURSE", "Spag bol",  "Family-style spaghetti bolognese",  1);
-        manager.createRecipe("APPETIZER", "Gazpacho", "Cold Spanish tomato soup", 2);
-        Recipe r5 = manager.createRecipe("DESSERT",     "Affogato",  "Espresso over vanilla ice cream",   4);
+    /** Mirrors Main test 3: a single member ready for status-transition demos. */
+    public static void loadLifecycleDemo(Gym gym) {
+        seedPlans(gym);
+        clearAll(gym);
+        gym.enrolMember("Dilan Demir", "dilan@example.com", "", "Standard Six-Month");
+    }
 
-        r1.setDeadline(LocalDate.of(2026, 4, 1));
-        r2.setDeadline(LocalDate.of(2026, 5, 15));
-        r5.setDeadline(LocalDate.of(2026, 4, 30));
+    /** A small mixed-status snapshot used as a generic "load some data" option. */
+    public static void loadIntegrationDemo(Gym gym) {
+        seedPlans(gym);
+        clearAll(gym);
 
-        manager.transitionRecipe(r1.getId(), RecipeStatus.TESTING);
-        manager.transitionRecipe(r3.getId(), RecipeStatus.TESTING);
-        manager.transitionRecipe(r3.getId(), RecipeStatus.APPROVED);
+        Member g1 = gym.enrolMember("Guest One",   "g1@example.com", "", "Basic Monthly");
+        Member g2 = gym.enrolMember("Guest Two",   "g2@example.com", "", "Standard Six-Month");
+        Member g3 = gym.enrolMember("Guest Three", "g3@example.com", "", "Premium Annual");
+        Member g4 = gym.enrolMember("Guest Four",  "g4@example.com", "", "Premium Annual");
+
+        g1.attachNotifier(new EmailMemberNotifier(g1));
+        g2.attachNotifier(new SmsMemberNotifier(g2));
+        g3.attachNotifier(new PushMemberNotifier(g3));
+        g4.attachNotifier(new EmailMemberNotifier(g4));
+        g4.attachNotifier(new SmsMemberNotifier(g4));
+
+        g1.setStatus(MembershipStatus.ACTIVE);
+        g2.setStatus(MembershipStatus.ACTIVE);
+        g2.setStatus(MembershipStatus.FROZEN);
+        g3.setStatus(MembershipStatus.ACTIVE);
+        g4.setStatus(MembershipStatus.ACTIVE);
+        g4.setStatus(MembershipStatus.EXPIRING);
+
+        gym.publishPaymentDue(g1.getId(), LocalDate.now().plusDays(5), 29.99);
+        gym.publishRenewalReminder(g4.getId());
+        gym.publishPromotion(15.0, "Refer a friend and save 15%.");
     }
 }

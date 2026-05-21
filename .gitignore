@@ -24,8 +24,8 @@ target/
 *.7z
 
 # ...except the two we ship intentionally.
-!RecipeManagerGUI.jar
-!SEN3006_Recipe_Management_System.zip
+!GymManagerGUI.jar
+!SEN3006_Gym_Membership_Management_System.zip
 
 # ---- IDE and editor settings ---------------------------------------
 .idea/

@@ -1,5 +1,5 @@
 @echo off
-REM Builds RecipeManagerGUI.jar -- runnable JAR for the GUI demo.
+REM Builds GymManagerGUI.jar -- runnable JAR for the GUI demo.
 REM Run this once before zipping for the professor.
 
 setlocal
@@ -16,15 +16,15 @@ if errorlevel 1 goto :error
 
 echo ==^> Writing JAR manifest
 echo Manifest-Version: 1.0> manifest.txt
-echo Main-Class: RecipeManagerGUI>> manifest.txt
+echo Main-Class: GymManagerGUI>> manifest.txt
 echo.>> manifest.txt
 
-echo ==^> Building RecipeManagerGUI.jar
-jar cfm RecipeManagerGUI.jar manifest.txt -C bin .
+echo ==^> Building GymManagerGUI.jar
+jar cfm GymManagerGUI.jar manifest.txt -C bin .
 del manifest.txt
 
 echo ==^> Done. To launch:
-echo     java -jar RecipeManagerGUI.jar
+echo     java -jar GymManagerGUI.jar
 goto :eof
 
 :error

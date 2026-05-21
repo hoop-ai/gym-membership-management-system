@@ -1,45 +1,51 @@
 # Use Case Diagram
 
-Every operation a cook can perform. The PlantUML source is in
-[recipe-management-usecase.puml](recipe-management-usecase.puml).
+Every operation the staff can perform. PlantUML source:
+[gym-management-usecase.puml](gym-management-usecase.puml).
 
 ```mermaid
 flowchart LR
-    Cook(("Cook<br/>(User)"))
-    subgraph RMS [Recipe Management System]
-      UC1[Create a recipe]
-      UC2[View all recipes]
-      UC3[View ordered recipes]
-      UC4[Change sort strategy]
-      UC5[Transition recipe status]
-      UC6[Filter recipes by status]
-      UC7[View recipe details]
-      UC8[Show summary]
-      UC9[Remove a recipe]
-      UC10[Load demo scenario]
+    Staff(("Staff<br/>(User)"))
+    subgraph GMS [Gym Membership Management System]
+      UC1[List plans]
+      UC2[Build a new plan]
+      UC3[Enrol a member]
+      UC4[List members]
+      UC5[Change member status]
+      UC6[Attach a notifier]
+      UC7[Publish payment-due]
+      UC8[Publish renewal reminder]
+      UC9[Publish class cancellation]
+      UC10[Publish promotion]
+      UC11[Show summary]
+      UC12[Load demo scenario]
     end
-    Cook --- UC1
-    Cook --- UC2
-    Cook --- UC3
-    Cook --- UC4
-    Cook --- UC5
-    Cook --- UC6
-    Cook --- UC7
-    Cook --- UC8
-    Cook --- UC9
-    Cook --- UC10
+    Staff --- UC1
+    Staff --- UC2
+    Staff --- UC3
+    Staff --- UC4
+    Staff --- UC5
+    Staff --- UC6
+    Staff --- UC7
+    Staff --- UC8
+    Staff --- UC9
+    Staff --- UC10
+    Staff --- UC11
+    Staff --- UC12
 ```
 
 ## Pattern annotations
 
 | Use case | Pattern involvement |
-|---|---|
-| Create a recipe | Factory Method -- the manager looks up the right factory by type key and delegates the `new` call to it. |
-| View ordered recipes | Strategy -- the manager delegates ordering to the current `SortStrategy`. |
-| Change sort strategy | Strategy swap -- a single setter call replaces the algorithm at runtime. |
-| Transition recipe status | State -- validated by the `RecipeStatus` enum's transition rules. |
-| Load demo scenario | GUI helper -- the `DemoScenarios` class mirrors the data sets used in the scripted tests. |
+|----------|---------------------|
+| Build a new plan | Builder -- the fluent inner class composes plan attributes and validates them in `build()`. |
+| Enrol a member | Gym consumes the registered plan (built earlier via the Builder) and creates a `Member` in `PENDING`. |
+| Change member status | State -- validated by the `MembershipStatus` enum's transition rules. |
+| Attach a notifier | Observer -- adds an Observer to the member's local subscription list. |
+| Publish payment-due / renewal reminder | Targeted Observer dispatch -- only that member's notifiers fire. |
+| Publish class cancellation / promotion | Broadcast Observer dispatch -- every notifier on every member fires. |
+| Load demo scenario | GUI helper -- `DemoScenarios` mirrors the data sets used in the scripted tests. |
 
 Every use case is reachable from all three entry points (`Main`,
-`RecipeManagementApp`, `gui/RecipeManagerGUI`) because all three drive
-the same `RecipeManager` public API.
+`GymManagementApp`, `gui.GymManagerGUI`) because all three drive the
+same `Gym` public API.

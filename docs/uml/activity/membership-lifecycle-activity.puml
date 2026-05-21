@@ -1,0 +1,40 @@
+@startuml MembershipLifecycleActivity
+title End-to-end member workflow -- Activity Diagram
+
+start
+:Staff builds plan via MembershipPlan.Builder;
+:Plan registered in Gym catalogue;
+:Member signs up;
+:Gym.enrolMember(...) -> Member in PENDING;
+:Member attaches one or more notifiers;
+
+if (First payment cleared?) then (yes)
+  :Transition to ACTIVE;
+  repeat
+    if (Member needs a break?) then (yes)
+      :Transition to FROZEN;
+      :Wait for resume;
+      :Transition back to ACTIVE;
+    else (no)
+      if (Within renewal grace window?) then (yes)
+        :Transition to EXPIRING;
+        :Gym publishes RenewalReminderEvent;
+        if (Member renews?) then (yes)
+          :Transition back to ACTIVE;
+          note right: renewal date\npushed forward
+        else (no)
+          :Transition to EXPIRED;
+          stop
+        endif
+      else (no)
+        :Stay ACTIVE;
+        :Gym may publish Payment/Promotion/ClassCancelled events;
+      endif
+    endif
+  repeat while (continue?)
+else (no)
+  :Transition to CANCELLED;
+  stop
+endif
+
+@enduml

@@ -1,0 +1,165 @@
+@startuml GymManagementClassDiagram
+title Gym Membership Management System -- Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontName Helvetica
+skinparam classBorderColor #14283B
+skinparam classBackgroundColor #F4F8FB
+
+class MembershipPlan {
+    -name: String
+    -durationMonths: int
+    -monthlyFee: double
+    -accessTier: AccessTier
+    -includedClasses: Set<String>
+    -guestPassesPerMonth: int
+    -freezeDaysPerYear: int
+    -personalTrainerIncluded: boolean
+    +getName(): String
+    +getDurationMonths(): int
+    +getMonthlyFee(): double
+    +getAccessTier(): AccessTier
+    +getIncludedClasses(): Set<String>
+    +getTotalCost(): double
+}
+
+class "MembershipPlan.Builder" as Builder {
+    -name: String
+    -durationMonths: int
+    -monthlyFee: double
+    -accessTier: AccessTier
+    -includedClasses: Set<String>
+    +Builder(name: String)
+    +durationMonths(int): Builder
+    +monthlyFee(double): Builder
+    +accessTier(AccessTier): Builder
+    +includesClass(String): Builder
+    +guestPassesPerMonth(int): Builder
+    +freezeDaysPerYear(int): Builder
+    +personalTrainerIncluded(boolean): Builder
+    +build(): MembershipPlan
+}
+
+class Member {
+    -id: int
+    -name: String
+    -email: String
+    -phone: String
+    -plan: MembershipPlan
+    -status: MembershipStatus
+    -renewalDate: LocalDate
+    -notifiers: List<MemberNotifier>
+    +setStatus(MembershipStatus): void
+    +changePlan(MembershipPlan): void
+    +attachNotifier(MemberNotifier): void
+    +detachNotifier(MemberNotifier): void
+}
+
+enum MembershipStatus {
+    PENDING
+    ACTIVE
+    EXPIRING
+    EXPIRED
+    FROZEN
+    CANCELLED
+    +canTransitionTo(MembershipStatus): boolean
+}
+
+enum AccessTier {
+    BASIC
+    STANDARD
+    PREMIUM
+}
+
+abstract class GymEvent {
+    -timestamp: LocalDateTime
+    -targetMember: Member
+    -message: String
+    +isBroadcast(): boolean
+    +{abstract} getType(): String
+}
+
+class PaymentDueEvent {
+    -dueDate: LocalDate
+    -amount: double
+}
+
+class RenewalReminderEvent {
+    -renewalDate: LocalDate
+}
+
+class ClassCancelledEvent {
+    -className: String
+    -classDate: LocalDate
+}
+
+class PromotionEvent {
+    -discountPercent: double
+}
+
+interface MemberNotifier {
+    +getMember(): Member
+    +getChannel(): String
+    +onEvent(GymEvent): void
+}
+
+class EmailMemberNotifier {
+    -sentLog: List<String>
+    +onEvent(GymEvent): void
+}
+
+class SmsMemberNotifier {
+    -sentLog: List<String>
+    +onEvent(GymEvent): void
+}
+
+class PushMemberNotifier {
+    -sentLog: List<String>
+    +onEvent(GymEvent): void
+}
+
+class Gym {
+    -name: String
+    -members: List<Member>
+    -planCatalogue: Map<String, MembershipPlan>
+    -eventJournal: List<GymEvent>
+    +registerPlan(MembershipPlan): void
+    +enrolMember(...): Member
+    +publishEvent(GymEvent): void
+    +publishPaymentDue(...): void
+    +publishRenewalReminder(...): void
+    +publishClassCancellation(...): void
+    +publishPromotion(...): void
+}
+
+MembershipPlan +-- Builder
+Builder ..> MembershipPlan : build()
+MembershipPlan ..> AccessTier
+
+Member o--> MembershipPlan
+Member ..> MembershipStatus
+Member o--> MemberNotifier
+
+GymEvent <|-- PaymentDueEvent
+GymEvent <|-- RenewalReminderEvent
+GymEvent <|-- ClassCancelledEvent
+GymEvent <|-- PromotionEvent
+GymEvent ..> Member
+
+MemberNotifier <|.. EmailMemberNotifier
+MemberNotifier <|.. SmsMemberNotifier
+MemberNotifier <|.. PushMemberNotifier
+MemberNotifier ..> GymEvent
+MemberNotifier ..> Member
+
+Gym o--> Member
+Gym o--> MembershipPlan
+Gym ..> GymEvent
+Gym ..> MemberNotifier
+
+note bottom of Gym
+  Builder client (consumes MembershipPlan)
+  Observer subject (dispatches GymEvent)
+end note
+
+@enduml

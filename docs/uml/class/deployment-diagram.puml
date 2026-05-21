@@ -1,15 +1,15 @@
-@startuml RecipeManagementDeploymentDiagram
-title Recipe Management System -- Deployment Diagram
+@startuml GymManagementDeploymentDiagram
+title Gym Membership Management System -- Deployment Diagram
 
 node "User's computer" as PC {
     artifact "Operating System\n(Windows / macOS / Linux)" as OS
 
     node "Java Virtual Machine (JDK 8+)" as JVM {
         artifact "Main.class\n(scripted demo)"                  as MAIN
-        artifact "RecipeManagementApp.class\n(console driver)"  as APP
-        artifact "RecipeManagerGUI.class\n+ gui/*.class"        as GUI
+        artifact "GymManagementApp.class\n(console driver)"     as APP
+        artifact "GymManagerGUI.class\n+ gui/*.class"           as GUI
 
-        artifact "RecipeManager.class\n+ factories\n+ strategies\n+ recipes\n+ RecipeStatus" as ENG
+        artifact "Gym.class\n+ MembershipPlan\n+ Member\n+ events\n+ notifiers\n+ enums" as ENG
     }
 }
 

@@ -1,131 +1,148 @@
 # Class Diagram
 
-Recipe Management System -- 17 classes organised in three layers
-(product / pattern / coordination). The PlantUML source is in
-[recipe-management-class.puml](recipe-management-class.puml).
+Gym Membership Management System -- 19 classes organised in three layers
+(domain / pattern / coordination). The PlantUML source is in
+[gym-management-class.puml](gym-management-class.puml).
 
 ```mermaid
 classDiagram
-    class Recipe {
-        <<interface>>
-        +getId() int
-        +getTitle() String
-        +getDescription() String
-        +getStatus() RecipeStatus
-        +setStatus(RecipeStatus)
-        +getPriority() int
-        +getDeadline() LocalDate
-        +setDeadline(LocalDate)
-        +getCreatedAt() LocalDateTime
+    class MembershipPlan {
+        -name String
+        -durationMonths int
+        -monthlyFee double
+        -accessTier AccessTier
+        -includedClasses Set~String~
+        -guestPassesPerMonth int
+        -freezeDaysPerYear int
+        -personalTrainerIncluded boolean
+        +getTotalCost() double
+    }
+
+    class MembershipPlanBuilder {
+        +Builder(name)
+        +durationMonths(int) Builder
+        +monthlyFee(double) Builder
+        +accessTier(AccessTier) Builder
+        +includesClass(String) Builder
+        +guestPassesPerMonth(int) Builder
+        +freezeDaysPerYear(int) Builder
+        +personalTrainerIncluded(bool) Builder
+        +build() MembershipPlan
+    }
+
+    class Member {
+        -id int
+        -name String
+        -email String
+        -phone String
+        -plan MembershipPlan
+        -status MembershipStatus
+        -renewalDate LocalDate
+        -notifiers List~MemberNotifier~
+        +setStatus(MembershipStatus)
+        +attachNotifier(MemberNotifier)
+        +detachNotifier(MemberNotifier)
+    }
+
+    class MembershipStatus {
+        <<enum>>
+        PENDING
+        ACTIVE
+        EXPIRING
+        EXPIRED
+        FROZEN
+        CANCELLED
+        +canTransitionTo(MembershipStatus) bool
+    }
+
+    class AccessTier {
+        <<enum>>
+        BASIC
+        STANDARD
+        PREMIUM
+    }
+
+    class GymEvent {
+        <<abstract>>
+        -timestamp LocalDateTime
+        -targetMember Member
+        -message String
+        +isBroadcast() bool
         +getType() String
     }
 
-    class AbstractRecipe {
-        <<abstract>>
-        -id int
-        -title String
-        -description String
-        -status RecipeStatus
-        -priority int
-        -deadline LocalDate
-        -createdAt LocalDateTime
-        +AbstractRecipe(title, description, priority)
+    class PaymentDueEvent {
+        -dueDate LocalDate
+        -amount double
     }
 
-    class DessertRecipe {
-        -sweetness String
-        -preparationNotes String
-        +getSweetness() String
-        +setSweetness(String)
-        +getPreparationNotes() String
+    class RenewalReminderEvent {
+        -renewalDate LocalDate
     }
 
-    class MainCourseRecipe {
-        -cookingTimeMinutes int
-        -satisfactionRating int
-        +getCookingTimeMinutes() int
-        +getSatisfactionRating() int
+    class ClassCancelledEvent {
+        -className String
+        -classDate LocalDate
     }
 
-    class AppetizerRecipe {
-        -serveTemperature String
-        -occasion String
-        +getServeTemperature() String
-        +getOccasion() String
+    class PromotionEvent {
+        -discountPercent double
     }
 
-    class RecipeStatus {
-        <<enum>>
-        DRAFT
-        TESTING
-        APPROVED
-        COOKED
-        PAUSED
-        +canTransitionTo(RecipeStatus) boolean
-    }
-
-    class RecipeFactory {
-        <<abstract>>
-        +createRecipe(title, description, priority) Recipe
-        +createRecipeWithDeadline(title, description, priority, cookBy) Recipe
-    }
-
-    class DessertRecipeFactory
-    class MainCourseRecipeFactory
-    class AppetizerRecipeFactory
-
-    class SortStrategy {
+    class MemberNotifier {
         <<interface>>
-        +sort(List~Recipe~) List~Recipe~
+        +getMember() Member
+        +getChannel() String
+        +onEvent(GymEvent)
     }
 
-    class UrgentFirstStrategy
-    class DeadlineFirstStrategy
-    class DessertFirstStrategy
+    class EmailMemberNotifier
+    class SmsMemberNotifier
+    class PushMemberNotifier
 
-    class RecipeManager {
-        -recipes List~Recipe~
-        -currentStrategy SortStrategy
-        -factoryRegistry Map~String,RecipeFactory~
-        +createRecipe(type, title, desc, priority) Recipe
-        +registerFactory(type, factory)
-        +getAllRecipes() List~Recipe~
-        +getOrderedRecipes() List~Recipe~
-        +setSortStrategy(SortStrategy)
-        +transitionRecipe(id, RecipeStatus)
+    class Gym {
+        -name String
+        -members List~Member~
+        -planCatalogue Map~String,MembershipPlan~
+        -eventJournal List~GymEvent~
+        +registerPlan(MembershipPlan)
+        +enrolMember(name, email, phone, planName) Member
+        +publishEvent(GymEvent)
     }
 
-    Recipe <|.. AbstractRecipe
-    AbstractRecipe <|-- DessertRecipe
-    AbstractRecipe <|-- MainCourseRecipe
-    AbstractRecipe <|-- AppetizerRecipe
-    AbstractRecipe ..> RecipeStatus
+    MembershipPlan ..> AccessTier
+    MembershipPlanBuilder ..> MembershipPlan : build()
 
-    RecipeFactory <|-- DessertRecipeFactory
-    RecipeFactory <|-- MainCourseRecipeFactory
-    RecipeFactory <|-- AppetizerRecipeFactory
-    DessertRecipeFactory ..> DessertRecipe : creates
-    MainCourseRecipeFactory ..> MainCourseRecipe : creates
-    AppetizerRecipeFactory ..> AppetizerRecipe : creates
+    Member o--> MembershipPlan
+    Member ..> MembershipStatus
+    Member o--> MemberNotifier
 
-    SortStrategy <|.. UrgentFirstStrategy
-    SortStrategy <|.. DeadlineFirstStrategy
-    SortStrategy <|.. DessertFirstStrategy
-    DessertFirstStrategy ..> DessertRecipe : inspects type
+    GymEvent <|-- PaymentDueEvent
+    GymEvent <|-- RenewalReminderEvent
+    GymEvent <|-- ClassCancelledEvent
+    GymEvent <|-- PromotionEvent
+    GymEvent ..> Member
 
-    RecipeManager o--> Recipe : holds many
-    RecipeManager o--> SortStrategy : current
-    RecipeManager o--> RecipeFactory : registry
+    MemberNotifier <|.. EmailMemberNotifier
+    MemberNotifier <|.. SmsMemberNotifier
+    MemberNotifier <|.. PushMemberNotifier
+    MemberNotifier ..> GymEvent
+
+    Gym o--> Member
+    Gym o--> MembershipPlan
+    Gym ..> GymEvent
+    Gym ..> MemberNotifier
 ```
 
 ## What to look at
 
-- **Two pattern hierarchies sit side by side.** `RecipeFactory` and its
-  three subclasses are the Factory Method side. `SortStrategy` and its
-  three implementations are the Strategy side.
-- **`RecipeManager` only points at abstractions.** Its three fields are
-  `List<Recipe>`, `SortStrategy`, `Map<String, RecipeFactory>` -- never
-  a concrete recipe, factory, or strategy class.
-- **`RecipeStatus` enum sits to the side** as a lightweight state
-  machine. The dashed arrow from `AbstractRecipe` represents the
-  state-transition check inside `setStatus(...)`.
+- **Two pattern hierarchies sit side by side.** The Builder side is
+  `MembershipPlan` and its nested `Builder` (drawn as
+  `MembershipPlanBuilder` here because Mermaid does not render nested
+  notation cleanly). The Observer side is `GymEvent` with four
+  subclasses plus `MemberNotifier` with three implementations.
+- **`Gym` only references abstractions.** Its fields are
+  `List<Member>`, `Map<String, MembershipPlan>`, and `List<GymEvent>`
+  -- never a concrete event or notifier.
+- **`MembershipStatus` sits alongside `Member`** and provides the
+  lightweight State pattern that enforces lifecycle transitions.

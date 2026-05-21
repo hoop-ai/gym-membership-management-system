@@ -1,0 +1,41 @@
+@startuml GymManagementUseCase
+title Gym Membership Management System -- Use Case Diagram
+left to right direction
+
+actor "Staff (User)" as Staff
+
+rectangle "Gym Membership Management System" {
+    usecase "List plans"                    as UC1
+    usecase "Build a new plan"              as UC2
+    usecase "Enrol a member"                as UC3
+    usecase "List members"                  as UC4
+    usecase "Change member status"          as UC5
+    usecase "Attach a notifier"             as UC6
+    usecase "Publish payment-due (targeted)"     as UC7
+    usecase "Publish renewal reminder (targeted)" as UC8
+    usecase "Publish class cancellation (broadcast)" as UC9
+    usecase "Publish promotion (broadcast)"      as UC10
+    usecase "Show summary"                  as UC11
+    usecase "Load demo scenario"            as UC12
+}
+
+Staff --> UC1
+Staff --> UC2
+Staff --> UC3
+Staff --> UC4
+Staff --> UC5
+Staff --> UC6
+Staff --> UC7
+Staff --> UC8
+Staff --> UC9
+Staff --> UC10
+Staff --> UC11
+Staff --> UC12
+
+note bottom of UC2 : Uses Builder --\nimmutable plan,\nvalidated in build().
+note bottom of UC5 : Validated by\nMembershipStatus state machine.
+note bottom of UC6 : Adds an Observer\nto the member.
+note bottom of UC7 : Targeted event:\nonly that member's notifiers fire.
+note bottom of UC9 : Broadcast event:\nevery attached notifier fires.
+
+@enduml

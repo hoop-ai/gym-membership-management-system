@@ -1,38 +1,46 @@
-# State Diagram -- Recipe lifecycle
+# State Diagram -- Membership lifecycle
 
-The five `RecipeStatus` values and the nine allowed transitions
-between them. The PlantUML source is in
-[recipe-state.puml](recipe-state.puml).
+The six `MembershipStatus` values and the allowed transitions between
+them. PlantUML source: [membership-state.puml](membership-state.puml).
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT
+    [*] --> PENDING
 
-    DRAFT --> TESTING : start testing
-    DRAFT --> PAUSED  : pause
+    PENDING --> ACTIVE    : activate
+    PENDING --> CANCELLED : cancel
 
-    TESTING --> APPROVED : approve
-    TESTING --> PAUSED   : pause
+    ACTIVE --> EXPIRING  : grace window
+    ACTIVE --> FROZEN    : freeze
+    ACTIVE --> CANCELLED : cancel
 
-    APPROVED --> COOKED  : mark cooked
-    APPROVED --> TESTING : revise
+    EXPIRING --> ACTIVE    : renew
+    EXPIRING --> EXPIRED   : lapse
+    EXPIRING --> CANCELLED : cancel
 
-    COOKED --> [*]
+    FROZEN --> ACTIVE    : resume
+    FROZEN --> CANCELLED : cancel
 
-    PAUSED --> DRAFT : resume
+    EXPIRED   --> [*]
+    CANCELLED --> [*]
 ```
 
 ## Transition table
 
-| From | Allowed to | Disallowed |
-|---|---|---|
-| `DRAFT` | `TESTING`, `PAUSED` | anything else |
-| `TESTING` | `APPROVED`, `PAUSED` | anything else |
-| `APPROVED` | `COOKED`, `TESTING` | anything else |
-| `COOKED` | (terminal) | every other state |
-| `PAUSED` | `DRAFT` | anything else |
+| From        | Allowed to                          | Disallowed |
+|-------------|-------------------------------------|------------|
+| `PENDING`   | `ACTIVE`, `CANCELLED`               | anything else |
+| `ACTIVE`    | `EXPIRING`, `FROZEN`, `CANCELLED`   | anything else |
+| `EXPIRING`  | `ACTIVE`, `EXPIRED`, `CANCELLED`    | anything else |
+| `EXPIRED`   | (terminal)                          | every other state |
+| `FROZEN`    | `ACTIVE`, `CANCELLED`               | anything else |
+| `CANCELLED` | (terminal)                          | every other state |
 
 Any disallowed transition throws `IllegalArgumentException` with the
 exact message `"Cannot transition from X to Y"`. The state machine is
-enforced inside `AbstractRecipe.setStatus(...)` via the enum method
-`RecipeStatus.canTransitionTo(...)`.
+enforced inside `Member.setStatus(...)` via the enum method
+`MembershipStatus.canTransitionTo(...)`.
+
+When a member moves from `EXPIRING` or `FROZEN` back into `ACTIVE`,
+`Member.setStatus` also pushes the renewal date forward by the plan's
+duration -- modelling a renewal or a resume.

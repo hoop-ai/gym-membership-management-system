@@ -1,6 +1,6 @@
 # Deployment Diagram
 
-The whole system runs in one JVM. The PlantUML source is in
+The whole system runs in one JVM. PlantUML source:
 [deployment-diagram.puml](deployment-diagram.puml).
 
 ```mermaid
@@ -9,9 +9,9 @@ flowchart TB
       OS[Operating System<br/>Windows / macOS / Linux]
       subgraph JVM [Java Virtual Machine - JDK 8+]
         MAIN[Main.class<br/>scripted demo]
-        APP[RecipeManagementApp.class<br/>console driver]
-        GUI[RecipeManagerGUI.class<br/>+ gui/*.class]
-        ENG[RecipeManager.class<br/>factories + strategies<br/>+ recipes + RecipeStatus]
+        APP[GymManagementApp.class<br/>console driver]
+        GUI[GymManagerGUI.class<br/>+ gui/*.class]
+        ENG[Gym.class<br/>MembershipPlan + Member<br/>events + notifiers + enums]
       end
     end
 

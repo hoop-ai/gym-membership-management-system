@@ -1,39 +1,46 @@
-@startuml RecipeManagementComponentDiagram
-title Recipe Management System -- Component Diagram
+@startuml GymManagementComponentDiagram
+title Gym Membership Management System -- Component Diagram
 
 skinparam componentStyle rectangle
 
 package "Presentation layer" {
     [Main\n(test demo)]                 as MAIN
-    [RecipeManagementApp\n(console)]    as APP
-    [RecipeManagerGUI\n(Swing GUI)]     as GUI
+    [GymManagementApp\n(console)]       as APP
+    [GymManagerGUI\n(Swing GUI)]        as GUI
 }
 
 package "Coordination layer" {
-    [RecipeManager] as MGR
+    [Gym] as GYM
 }
 
 package "Pattern layer" {
-    [RecipeFactory\nhierarchy]  as FACT
-    [SortStrategy\nhierarchy]   as STRAT
-    [RecipeStatus\nstate machine] as STATE
+    [MembershipPlan.Builder]                as B
+    [GymEvent hierarchy\n(abstract + 4 events)] as EVT
+    [MemberNotifier hierarchy\n(interface + 3 channels)] as NOT
+    [MembershipStatus\nstate machine] as STATE
 }
 
-package "Product layer" {
-    [Recipe / AbstractRecipe\nand 3 concrete recipes] as PROD
+package "Domain layer" {
+    [MembershipPlan]                                  as PLAN
+    [Member]                                          as MEMBER
+    [AccessTier]                                      as TIER
 }
 
-MAIN  --> MGR
-APP   --> MGR
-GUI   --> MGR
+MAIN --> GYM
+APP  --> GYM
+GUI  --> GYM
 
-MGR --> FACT
-MGR --> STRAT
-MGR --> STATE
-MGR --> PROD
+GYM --> B
+GYM --> EVT
+GYM --> NOT
+GYM --> PLAN
+GYM --> MEMBER
 
-FACT --> PROD
-STATE <-- PROD
-STRAT --> PROD
+B    --> PLAN
+PLAN --> TIER
+MEMBER --> PLAN
+MEMBER --> STATE
+MEMBER --> NOT
+NOT --> EVT
 
 @enduml
