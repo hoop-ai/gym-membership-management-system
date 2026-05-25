@@ -1,9 +1,12 @@
 # =====================================================================
-# .gitignore for the SEN3006 Recipe Management System
+# .gitignore for the SEN3006 Gym Membership Management System
 # =====================================================================
 # Keep the repository clean: only source code, documentation, build
 # scripts, and the packaged runnable artifacts are tracked.
 # =====================================================================
+
+# ---- Archived/historical work (kept locally, never published) -----
+archive/
 
 # ---- Compiled Java output ------------------------------------------
 *.class
@@ -11,6 +14,9 @@ bin/
 out/
 build/
 target/
+
+# ---- Runtime-generated files --------------------------------------
+audit.log
 
 # ---- Archives ------------------------------------------------------
 # Default: ignore every archive...
@@ -23,8 +29,8 @@ target/
 *.rar
 *.7z
 
-# ...except the two we ship intentionally.
-!GymManagerGUI.jar
+# ...except the runnable jar we ship.
+!gym.jar
 !SEN3006_Gym_Membership_Management_System.zip
 
 # ---- IDE and editor settings ---------------------------------------

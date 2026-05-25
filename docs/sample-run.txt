@@ -1,0 +1,50 @@
+========================================================================
+   GYM MEMBERSHIP MANAGEMENT SYSTEM — Builder + Observer Demo
+========================================================================
+
+--- 1. Setting up the gym ----------------------------------------------
+Created gym: FitLife Centre
+Attached 3 observers: Console, AuditFile (audit.log), InMemoryJournal
+
+--- 2. Adding fitness classes (Builder pattern) ------------------------
+[21:51:23] [CLASS_ADDED] Class added: 'Yoga Flow' with Sarah Lin
+[21:51:23] [CLASS_ADDED] Class added: 'Spin Express' with Tom Reyes
+[21:51:23] [CLASS_ADDED] Class added: 'HIIT 45' with Aisha Patel
+
+--- 3. Adding members --------------------------------------------------
+[21:51:23] [MEMBER_ADDED] Member added: Sarah Connor (id=1)
+[21:51:23] [MEMBER_ADDED] Member added: Tom Hardy (id=2)
+[21:51:23] [MEMBER_ADDED] Member added: Aisha Tyler (id=3)
+
+--- 4. Enrolling members in classes (Observer pattern) -----------------
+[21:51:23] [MEMBER_ENROLLED] Sarah Connor enrolled in 'Yoga Flow'
+[21:51:23] [MEMBER_ENROLLED] Tom Hardy enrolled in 'Spin Express'
+[21:51:23] [MEMBER_ENROLLED] Aisha Tyler enrolled in 'HIIT 45'
+[21:51:23] [MEMBER_ENROLLED] Sarah Connor enrolled in 'HIIT 45'
+
+--- 5. Drops and removals ----------------------------------------------
+[21:51:23] [MEMBER_DROPPED] Tom Hardy dropped from 'Spin Express'
+[21:51:23] [MEMBER_REMOVED] Member removed: Tom Hardy (id=2)
+
+--- 6. Error handling demo (each error is caught, no crash) ------------
+? Caught: No member found with ID 99. Known IDs: 1, 3.
+? Caught: Cannot add class: 'yoga flow' already exists.
+? Caught: Cannot enrol Sarah Connor in 'Yoga Flow': already enrolled.
+
+--- 7. Final journal dump (InMemoryJournalObserver) --------------------
+12 events captured:
+  [21:51:23] [CLASS_ADDED     ] Class added: 'Yoga Flow' with Sarah Lin
+  [21:51:23] [CLASS_ADDED     ] Class added: 'Spin Express' with Tom Reyes
+  [21:51:23] [CLASS_ADDED     ] Class added: 'HIIT 45' with Aisha Patel
+  [21:51:23] [MEMBER_ADDED    ] Member added: Sarah Connor (id=1)
+  [21:51:23] [MEMBER_ADDED    ] Member added: Tom Hardy (id=2)
+  [21:51:23] [MEMBER_ADDED    ] Member added: Aisha Tyler (id=3)
+  [21:51:23] [MEMBER_ENROLLED ] Sarah Connor enrolled in 'Yoga Flow'
+  [21:51:23] [MEMBER_ENROLLED ] Tom Hardy enrolled in 'Spin Express'
+  [21:51:23] [MEMBER_ENROLLED ] Aisha Tyler enrolled in 'HIIT 45'
+  [21:51:23] [MEMBER_ENROLLED ] Sarah Connor enrolled in 'HIIT 45'
+  [21:51:23] [MEMBER_DROPPED  ] Tom Hardy dropped from 'Spin Express'
+  [21:51:23] [MEMBER_REMOVED  ] Member removed: Tom Hardy (id=2)
+
+--- Done ---------------------------------------------------------------
+audit.log written with 12 lines.

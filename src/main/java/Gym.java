@@ -1,237 +1,310 @@
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Coordinator class for the Gym Membership Management System.
+ * The {@code Gym} is the application's aggregate root and the single
+ * point of event publication.
  *
- * <p>{@code Gym} ties together the {@link Member}s, the catalogue of
- * {@link MembershipPlan}s, and the {@link GymEvent}-based notification fabric.
- * It plays two design-pattern roles at once:</p>
+ * <p><strong>Pattern role: Observer (Behavioral, GoF) — Subject.</strong>
+ * Observers register via {@link #addObserver(GymEventObserver)} and receive
+ * every event the gym publishes. The Gym is the ONLY class that calls
+ * {@link GymEventObserver#onEvent(GymEvent)}. Events are never raised from
+ * anywhere else — not from {@code Member}, not from {@code FitnessClass},
+ * not from {@code Main}. Single point of publication = one place to look
+ * when something is wrong.</p>
  *
+ * <p>The gym owns:</p>
  * <ul>
- *   <li><strong>Builder client.</strong> Receives plans that callers have
- *       built using {@link MembershipPlan.Builder}. The gym itself never
- *       constructs plans positionally -- it works entirely with fully-built
- *       immutable {@link MembershipPlan} instances.</li>
- *   <li><strong>Observer subject.</strong> Holds a global registry of every
- *       {@link MemberNotifier} attached to any member, and dispatches
- *       {@link GymEvent}s to them via {@link #publishEvent(GymEvent)}.
- *       Members never call notifiers directly -- the gym is the single
- *       publication point, which is the central guarantee of the Observer
- *       pattern.</li>
+ *   <li>a list of {@link Member}s (id-keyed; ids are assigned here);</li>
+ *   <li>a list of {@link FitnessClass}es (name-keyed, case-insensitive);</li>
+ *   <li>a list of {@link GymEventObserver}s.</li>
  * </ul>
  *
- * <h3>Why one publication point?</h3>
- * <p>Concentrating the publish step here keeps every notification path
- * uniform: filtering rules, gym-wide auditing, broadcast detection, and any
- * future cross-cutting policy (rate-limiting, quiet hours, opt-outs) live in
- * one place. Members and notifiers stay simple.</p>
+ * <p><strong>Case-insensitivity.</strong> Class-name lookups
+ * ({@link #getClass(String)}, {@link #removeClass(String)},
+ * {@link #enrolMemberInClass(int, String)}, etc.) match on case-folded
+ * names — "Yoga Flow", "yoga flow", and "YOGA FLOW" all refer to the same
+ * class. The class's own stored name is preserved as supplied.</p>
  *
- * <h3>SOLID Principles Demonstrated</h3>
- * <ul>
- *   <li><strong>Single Responsibility.</strong> Coordinates -- delegates
- *       construction to {@link MembershipPlan.Builder}, delivery to
- *       {@link MemberNotifier}, and state transitions to {@link Member} /
- *       {@link MembershipStatus}.</li>
- *   <li><strong>Open/Closed.</strong> Adding a new plan, a new notifier
- *       channel, or a new event type requires zero changes here.</li>
- *   <li><strong>Dependency Inversion.</strong> Holds references to the
- *       abstractions ({@link MembershipPlan}, {@link Member},
- *       {@link MemberNotifier}, {@link GymEvent}) -- never to a concrete
- *       notifier or event subclass.</li>
- * </ul>
+ * <p>This class shadows {@link Object#getClass()} with its own
+ * {@link #getClass(String)} overload. Because the overload takes a parameter,
+ * the no-arg {@code Object.getClass()} method is still available — but
+ * callers within this package should prefer {@code this.getClass()} only
+ * when they mean the reflection method, which is rare.</p>
  */
 public class Gym {
 
     private final String name;
-    private final List<Member> members = new ArrayList<>();
-    private final Map<String, MembershipPlan> planCatalogue = new HashMap<>();
 
-    /** Append-only journal of every event published, used by tests and the GUI log. */
-    private final List<GymEvent> eventJournal = new ArrayList<>();
+    private final List<Member>           members   = new ArrayList<Member>();
+    private final List<FitnessClass>     classes   = new ArrayList<FitnessClass>();
+    private final List<GymEventObserver> observers = new ArrayList<GymEventObserver>();
 
+    /** Next id to assign to a new member. Monotonic, never reused. */
+    private int nextMemberId = 1;
+
+    /**
+     * Creates a gym.
+     *
+     * @param name non-blank gym name
+     */
     public Gym(String name) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Gym name must not be null or blank.");
-        }
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    // -----------------------------------------------------------------------
-    // Plan catalogue (Builder client)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Registers an immutable {@link MembershipPlan} under its display name.
-     * The plan must have been built via {@link MembershipPlan.Builder}.
-     *
-     * @param plan a fully-built plan
-     */
-    public void registerPlan(MembershipPlan plan) {
-        if (plan == null) {
-            throw new IllegalArgumentException("Plan must not be null.");
-        }
-        planCatalogue.put(plan.getName(), plan);
-    }
-
-    /**
-     * Looks up a registered plan by name.
-     *
-     * @param name the plan name
-     * @return the plan
-     * @throws IllegalArgumentException if no plan with that name is registered
-     */
-    public MembershipPlan getPlan(String name) {
-        MembershipPlan plan = planCatalogue.get(name);
-        if (plan == null) {
+        if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException(
-                    "No plan registered under name '" + name + "'. Available: "
-                            + planCatalogue.keySet());
+                "Cannot create gym: name must not be blank.");
         }
-        return plan;
+        this.name = name.trim();
     }
 
-    public List<MembershipPlan> getAllPlans() {
-        return new ArrayList<>(planCatalogue.values());
-    }
+    public String getName() { return name; }
 
-    // -----------------------------------------------------------------------
-    // Member management
-    // -----------------------------------------------------------------------
+    // =====================================================================
+    // Observer registration
+    // =====================================================================
 
     /**
-     * Enrols a member onto a named plan and returns the new {@link Member}.
+     * Registers an observer. Adding the same observer twice is a no-op.
      *
-     * @param name      the member's name
-     * @param email     the member's email
-     * @param phone     the member's phone number (may be empty)
-     * @param planName  the name of an already-registered plan
-     * @return the newly-created member, also added to this gym
+     * @param o non-null observer
      */
-    public Member enrolMember(String name, String email, String phone, String planName) {
-        MembershipPlan plan = getPlan(planName);
-        Member m = new Member(name, email, phone, plan);
+    public void addObserver(GymEventObserver o) {
+        if (o == null) {
+            throw new IllegalArgumentException(
+                "Cannot add observer: observer must not be null.");
+        }
+        if (!observers.contains(o)) {
+            observers.add(o);
+        }
+    }
+
+    /**
+     * Unregisters an observer. Silently does nothing if the observer was
+     * not registered.
+     */
+    public void removeObserver(GymEventObserver o) {
+        if (o == null) return;
+        observers.remove(o);
+    }
+
+    /** @return number of registered observers. */
+    public int observerCount() {
+        return observers.size();
+    }
+
+    // =====================================================================
+    // Member management
+    // =====================================================================
+
+    /**
+     * Adds a new member. The id is assigned by the gym (monotonic from 1).
+     * Publishes a {@link MemberAddedEvent}.
+     *
+     * @param memberName  non-blank display name
+     * @param email       non-blank email
+     * @return the newly created member
+     */
+    public Member addMember(String memberName, String email) {
+        if (memberName == null || memberName.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Cannot add member: name must not be blank.");
+        }
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Cannot add member: email must not be blank.");
+        }
+        Member m = new Member(nextMemberId++, memberName, email);
         members.add(m);
+        publish(new MemberAddedEvent(m));
         return m;
     }
 
+    /**
+     * Removes a member by id. Implicitly drops them from every class they
+     * are enrolled in (those drops are NOT published as separate events).
+     * Publishes a {@link MemberRemovedEvent}.
+     */
+    public void removeMember(int id) {
+        Member m = getMember(id);
+        for (FitnessClass c : classes) {
+            if (c.hasMember(m)) {
+                c.removeMember(m);
+            }
+        }
+        members.remove(m);
+        publish(new MemberRemovedEvent(m));
+    }
+
+    /**
+     * Looks up a member by id.
+     *
+     * @throws IllegalArgumentException if no member has the given id
+     */
     public Member getMember(int id) {
         for (Member m : members) {
             if (m.getId() == id) return m;
         }
-        throw new IllegalArgumentException("No member found with ID: " + id);
+        throw new IllegalArgumentException(
+            "No member found with ID " + id + "." + knownIdsHint());
     }
 
-    public List<Member> getAllMembers() {
+    /** @return unmodifiable view of every current member. */
+    public List<Member> getMembers() {
         return Collections.unmodifiableList(members);
     }
 
-    public void removeMember(int id) {
-        Member m = getMember(id);
-        members.remove(m);
-    }
-
-    public void changeMemberStatus(int memberId, MembershipStatus newStatus) {
-        getMember(memberId).setStatus(newStatus);
-    }
-
-    // -----------------------------------------------------------------------
-    // Observer pattern -- publish events to attached notifiers
-    // -----------------------------------------------------------------------
-
-    /**
-     * Publishes one event to every relevant {@link MemberNotifier}.
-     *
-     * <ul>
-     *   <li><strong>Targeted event</strong> (a specific {@code targetMember}):
-     *       only that member's attached notifiers receive it.</li>
-     *   <li><strong>Broadcast event</strong> (no target): every notifier
-     *       attached to <strong>any</strong> member receives it.</li>
-     * </ul>
-     *
-     * <p>Every event is also recorded in the gym-wide event journal, so the
-     * GUI can render a chronological log.</p>
-     *
-     * @param event the event to publish (must not be null)
-     */
-    public void publishEvent(GymEvent event) {
-        if (event == null) {
-            throw new IllegalArgumentException("Event must not be null.");
+    private String knownIdsHint() {
+        if (members.isEmpty()) {
+            return " No members are registered.";
         }
-        eventJournal.add(event);
-
-        if (event.isBroadcast()) {
-            // Broadcast -- everyone with at least one notifier hears it.
-            for (Member m : members) {
-                for (MemberNotifier n : m.getNotifiers()) {
-                    n.onEvent(event);
-                }
-            }
-        } else {
-            // Targeted -- only the target member's notifiers fire.
-            Member target = event.getTargetMember();
-            for (MemberNotifier n : target.getNotifiers()) {
-                n.onEvent(event);
-            }
+        StringBuilder sb = new StringBuilder(" Known IDs: ");
+        for (int i = 0; i < members.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(members.get(i).getId());
         }
-    }
-
-    /** Returns an unmodifiable view of every event ever published. */
-    public List<GymEvent> getEventJournal() {
-        return Collections.unmodifiableList(eventJournal);
-    }
-
-    // -----------------------------------------------------------------------
-    // Convenience event publishers (Subject helpers)
-    // -----------------------------------------------------------------------
-
-    public void publishPaymentDue(int memberId, LocalDate dueDate, double amount) {
-        publishEvent(new PaymentDueEvent(getMember(memberId), dueDate, amount));
-    }
-
-    public void publishRenewalReminder(int memberId) {
-        Member m = getMember(memberId);
-        publishEvent(new RenewalReminderEvent(m, m.getRenewalDate()));
-    }
-
-    public void publishClassCancellation(String className, LocalDate classDate) {
-        publishEvent(new ClassCancelledEvent(null, className, classDate));
-    }
-
-    public void publishPromotion(double discountPercent, String message) {
-        publishEvent(new PromotionEvent(discountPercent, message));
-    }
-
-    // -----------------------------------------------------------------------
-    // Reporting
-    // -----------------------------------------------------------------------
-
-    /**
-     * Returns a short, human-readable summary of the gym's current state.
-     */
-    public String getSummary() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Gym: %s%n", name));
-        sb.append(String.format("  Members:        %d%n", members.size()));
-        sb.append(String.format("  Plans on offer: %d%n", planCatalogue.size()));
-        sb.append(String.format("  Events emitted: %d%n", eventJournal.size()));
-        for (MembershipStatus s : MembershipStatus.values()) {
-            int count = 0;
-            for (Member m : members) {
-                if (m.getStatus() == s) count++;
-            }
-            if (count > 0) {
-                sb.append(String.format("    - %s: %d%n", s, count));
-            }
-        }
+        sb.append(".");
         return sb.toString();
+    }
+
+    // =====================================================================
+    // Class management
+    // =====================================================================
+
+    /**
+     * Adds a fitness class to the schedule. Validates non-null and that the
+     * class name is not already in use (case-insensitive). Publishes a
+     * {@link ClassAddedEvent}.
+     */
+    public void addClass(FitnessClass cls) {
+        if (cls == null) {
+            throw new IllegalArgumentException(
+                "Cannot add class: class must not be null.");
+        }
+        if (findClassIgnoreCase(cls.getName()) != null) {
+            throw new IllegalArgumentException(
+                "Cannot add class: '" + cls.getName() + "' already exists.");
+        }
+        classes.add(cls);
+        publish(new ClassAddedEvent(cls));
+    }
+
+    /**
+     * Removes a class by name (case-insensitive). Publishes a
+     * {@link ClassRemovedEvent}.
+     *
+     * @throws IllegalArgumentException if no class with that name exists
+     */
+    public void removeClass(String className) {
+        FitnessClass c = getClass(className);
+        classes.remove(c);
+        publish(new ClassRemovedEvent(c));
+    }
+
+    /**
+     * Looks up a class by name (case-insensitive). Overloads
+     * {@link Object#getClass()}.
+     *
+     * @throws IllegalArgumentException if no class with that name exists
+     */
+    public FitnessClass getClass(String className) {
+        if (className == null || className.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Cannot look up class: name must not be blank.");
+        }
+        FitnessClass c = findClassIgnoreCase(className);
+        if (c == null) {
+            throw new IllegalArgumentException(
+                "No class found with name '" + className + "'." + knownClassNamesHint());
+        }
+        return c;
+    }
+
+    /** @return unmodifiable view of every current class. */
+    public List<FitnessClass> getClasses() {
+        return Collections.unmodifiableList(classes);
+    }
+
+    /** @return the class matching name (case-insensitive), or null. */
+    private FitnessClass findClassIgnoreCase(String className) {
+        if (className == null) return null;
+        String needle = className.trim();
+        for (FitnessClass c : classes) {
+            if (c.getName().equalsIgnoreCase(needle)) return c;
+        }
+        return null;
+    }
+
+    private String knownClassNamesHint() {
+        if (classes.isEmpty()) {
+            return " No classes are scheduled.";
+        }
+        StringBuilder sb = new StringBuilder(" Known classes: ");
+        for (int i = 0; i < classes.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append("'").append(classes.get(i).getName()).append("'");
+        }
+        sb.append(".");
+        return sb.toString();
+    }
+
+    // =====================================================================
+    // Enrolment
+    // =====================================================================
+
+    /**
+     * Enrols a member in a class. Publishes a
+     * {@link MemberEnrolledInClassEvent} on success.
+     *
+     * @throws IllegalArgumentException if member or class is missing, the
+     *         member is already enrolled, or the class is full
+     */
+    public void enrolMemberInClass(int memberId, String className) {
+        Member m = getMember(memberId);
+        FitnessClass c = getClass(className);
+        if (c.hasMember(m)) {
+            throw new IllegalArgumentException(
+                "Cannot enrol " + m.getName() + " in '" + c.getName() +
+                "': already enrolled.");
+        }
+        if (c.isFull()) {
+            throw new IllegalArgumentException(
+                "Cannot enrol " + m.getName() + " in '" + c.getName() +
+                "': class is full (capacity " + c.getCapacity() + ").");
+        }
+        c.addMember(m);
+        publish(new MemberEnrolledInClassEvent(m, c));
+    }
+
+    /**
+     * Drops a member from a class. Publishes a
+     * {@link MemberDroppedFromClassEvent} on success.
+     *
+     * @throws IllegalArgumentException if member or class is missing, or
+     *         the member is not enrolled in the class
+     */
+    public void dropMemberFromClass(int memberId, String className) {
+        Member m = getMember(memberId);
+        FitnessClass c = getClass(className);
+        if (!c.hasMember(m)) {
+            throw new IllegalArgumentException(
+                "Cannot drop " + m.getName() + " from '" + c.getName() +
+                "': not enrolled.");
+        }
+        c.removeMember(m);
+        publish(new MemberDroppedFromClassEvent(m, c));
+    }
+
+    // =====================================================================
+    // Event publication — single point
+    // =====================================================================
+
+    /**
+     * Single point of event publication for the entire system. Nobody else
+     * calls {@link GymEventObserver#onEvent(GymEvent)}.
+     */
+    private void publish(GymEvent event) {
+        for (GymEventObserver o : observers) {
+            o.onEvent(event);
+        }
     }
 }

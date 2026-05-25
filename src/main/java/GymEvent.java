@@ -1,98 +1,68 @@
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
- * Abstract base for every event the {@link Gym} can publish.
+ * Abstract base for every event the {@link Gym} publishes.
  *
- * <p>Every event carries three universal pieces of information: when it was
- * raised, which member it concerns (or {@code null} for gym-wide
- * broadcasts), and a short human-readable message. Concrete subclasses add
- * the type-specific data they need (a due date and amount for payment-due,
- * a class name for cancellations, and so on).</p>
+ * <p><strong>Pattern role: Observer (Behavioral, GoF) — event payload.</strong>
+ * Each concrete subclass carries the payload specific to one kind of change
+ * (member added, class removed, enrolment, etc.). Observers receive these
+ * events through {@link GymEventObserver#onEvent(GymEvent)} and react however
+ * they like (print, log to a file, journal in memory).</p>
  *
- * <h3>Design Pattern Role -- Observer pattern</h3>
- * <p>{@code GymEvent} (and its subclasses) form the <strong>event data</strong>
- * carried from the {@code Subject} ({@link Gym}) to its {@code Observers}
- * ({@link MemberNotifier} instances). The Observer pattern allows the gym to
- * announce things to interested parties without knowing who they are or how
- * they handle the message, and it allows new channels (email, SMS, push)
- * and new event kinds to be added on either side independently.</p>
- *
- * <h3>SOLID Principles Demonstrated</h3>
- * <ul>
- *   <li><strong>Open/Closed.</strong> Adding a new event kind means adding a
- *       new subclass; no existing code changes.</li>
- *   <li><strong>Liskov Substitution.</strong> Every subclass honours the
- *       common contract (timestamp + targetMember + message), so notifiers
- *       can handle them uniformly.</li>
- *   <li><strong>Single Responsibility.</strong> Each subclass carries one
- *       kind of payload and nothing else.</li>
- * </ul>
- *
- * @see PaymentDueEvent
- * @see RenewalReminderEvent
- * @see ClassCancelledEvent
- * @see PromotionEvent
- * @see MemberNotifier
- * @see Gym
+ * <p>All events are immutable. The {@link #timestamp} is set at construction
+ * to {@link LocalDateTime#now()} — the time the event was raised, not the
+ * time it is observed. The {@link #type} string is a stable identifier
+ * ({@code "MEMBER_ADDED"}, {@code "CLASS_ADDED"}, etc.) chosen by the
+ * concrete subclass.</p>
  */
 public abstract class GymEvent {
 
-    /** When the event was raised. */
-    private final LocalDateTime timestamp;
+    /** Formatter used in the default {@link #toString()} output. */
+    private static final DateTimeFormatter TIME_FMT =
+        DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    /** Time at which the event was raised. */
+    protected final LocalDateTime timestamp;
+
+    /** Stable identifier for the kind of event (set by subclass). */
+    protected final String type;
+
+    /** Human-readable summary of what happened. */
+    protected final String message;
 
     /**
-     * The member the event targets, or {@code null} if the event is a
-     * gym-wide broadcast (e.g., a promotion announcement).
-     */
-    private final Member targetMember;
-
-    /** Short, human-readable summary. */
-    private final String message;
-
-    /**
-     * Initialises the shared fields. Subclasses call this from their own
-     * constructors.
+     * Initialises the shared fields. Concrete subclasses call this from
+     * their own constructors.
      *
-     * @param targetMember the member affected, or {@code null} for a broadcast
-     * @param message      a short summary (must not be null)
+     * @param type    stable event identifier, non-blank
+     * @param message human-readable summary, non-blank
      */
-    protected GymEvent(Member targetMember, String message) {
-        if (message == null) {
-            throw new IllegalArgumentException("Message must not be null.");
+    protected GymEvent(String type, String message) {
+        if (type == null || type.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Cannot create event: type must not be blank.");
         }
-        this.timestamp    = LocalDateTime.now();
-        this.targetMember = targetMember;
-        this.message      = message;
+        if (message == null || message.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Cannot create event: message must not be blank.");
+        }
+        this.timestamp = LocalDateTime.now();
+        this.type      = type;
+        this.message   = message;
     }
 
-    public LocalDateTime getTimestamp()    { return timestamp; }
-    public Member        getTargetMember() { return targetMember; }
-    public String        getMessage()      { return message; }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public String        getType()      { return type; }
+    public String        getMessage()   { return message; }
 
     /**
-     * Returns {@code true} when this event is a gym-wide broadcast (no
-     * specific target member).
-     *
-     * @return true if {@link #getTargetMember()} is {@code null}
+     * Default presentation: {@code [HH:MM:SS] [TYPE] message}.
+     * Used by {@link ConsoleObserver} and {@link AuditFileObserver}.
      */
-    public boolean isBroadcast() {
-        return targetMember == null;
-    }
-
-    /**
-     * Short, uppercase identifier for this event type
-     * ({@code "PAYMENT_DUE"}, {@code "RENEWAL_REMINDER"}, etc.). Concrete
-     * subclasses supply their own value.
-     *
-     * @return the event-type identifier
-     */
-    public abstract String getType();
-
     @Override
     public String toString() {
-        return String.format("[%s] %s -- %s",
-                getType(),
-                targetMember == null ? "broadcast" : targetMember.getName(),
-                message);
+        return String.format("[%s] [%s] %s",
+            timestamp.format(TIME_FMT), type, message);
     }
 }
