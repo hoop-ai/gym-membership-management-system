@@ -1,62 +1,79 @@
-# Sequence Diagram
+# Sequence Diagram - Enrol Member In Class
 
-Two flows: building a plan via the Builder, then enrolling a member
-and publishing a targeted event through the Observer fabric. PlantUML
-source: [publish-event-sequence.puml](publish-event-sequence.puml).
+This diagram walks through a single call from `Main` into the Gym:
+`gym.enrolMemberInClass(1, "yoga flow")`. It traces every interaction between
+the entry point, the `Gym` Subject, the `FitnessClass` being modified, and the
+three concrete observers attached during setup (`ConsoleObserver`,
+`AuditFileObserver`, `InMemoryJournalObserver`). The two internal lookups
+(`getMember`, `getFitnessClass`) are shown as self-messages on `Gym` because
+they are private collaborations inside the same object.
+
+The headline of the diagram is **step 7** combined with the three messages
+underneath it. `Gym` calls its own private `publish(...)` exactly once, with a
+single `MemberEnrolledInClassEvent`. That one publish call fans out to every
+registered observer in turn - the console prints, the audit file appends, and
+the in-memory journal records. This is the entire point of the Observer
+pattern: one event, many side effects, zero coupling between `Gym` and any
+specific reaction.
 
 ```mermaid
 sequenceDiagram
-    actor Staff
-    participant Builder as MembershipPlan.Builder
-    participant Plan as MembershipPlan
+    autonumber
+    participant Main
     participant Gym
-    participant Alice as Member alice
-    participant Email as EmailMemberNotifier
-    participant Push as PushMemberNotifier
+    participant Yoga as FitnessClass<br/>(Yoga Flow)
+    participant Console as ConsoleObserver
+    participant Audit as AuditFileObserver
+    participant Journal as InMemoryJournalObserver
 
-    Note over Staff,Builder: Build a plan (Builder pattern)
+    Main->>Gym: enrolMemberInClass(1, "yoga flow")
+    activate Gym
 
-    Staff->>Builder: new Builder("Premium Annual")
-    Staff->>Builder: durationMonths(12)
-    Staff->>Builder: monthlyFee(89.99)
-    Staff->>Builder: accessTier(PREMIUM)
-    Staff->>Builder: includesClass("Yoga")
-    Staff->>Builder: build()
-    Builder->>Plan: new MembershipPlan(this)
-    Plan-->>Builder: plan
-    Builder-->>Staff: MembershipPlan
+    Gym->>Gym: getMember(1)
+    Note right of Gym: returns Sarah Connor
 
-    Note over Staff,Gym: Register the plan + enrol Alice
+    Gym->>Gym: getFitnessClass("yoga flow")
+    Note right of Gym: case-insensitive lookup<br/>returns the "Yoga Flow" class
 
-    Staff->>Gym: registerPlan(plan)
-    Staff->>Gym: enrolMember("Alice", ...)
-    Gym->>Alice: new Member(...)
-    Alice-->>Gym: member
-    Gym-->>Staff: Member
+    Gym->>Yoga: hasMember(sarah)
+    Yoga-->>Gym: false
 
-    Staff->>Alice: attachNotifier(EmailMemberNotifier)
-    Staff->>Alice: attachNotifier(PushMemberNotifier)
+    Gym->>Yoga: isFull()
+    Yoga-->>Gym: false
 
-    Note over Staff,Gym: Publish a targeted event (Observer pattern)
+    Gym->>Yoga: addMember(sarah)
+    Yoga-->>Gym: ok
 
-    Staff->>Gym: publishPaymentDue(alice.id, dueDate, 89.99)
-    Gym->>Alice: getNotifiers()
-    Alice-->>Gym: [email, push]
-    Gym->>Email: onEvent(event)
-    Email->>Email: append to sentLog
-    Gym->>Push: onEvent(event)
-    Push->>Push: append to sentLog
+    Gym->>Gym: publish(new MemberEnrolledInClassEvent(sarah, yoga))
+    Note over Gym,Journal: Single publish call fans out<br/>to every registered observer
+
+    Gym->>Console: onEvent(event)
+    Note right of Console: prints "[HH:MM:SS] [MEMBER_ENROLLED] ..." to stdout
+    Console-->>Gym: 
+
+    Gym->>Audit: onEvent(event)
+    Note right of Audit: appends one line to audit.log
+    Audit-->>Gym: 
+
+    Gym->>Journal: onEvent(event)
+    Note right of Journal: stores event in in-memory list
+    Journal-->>Gym: 
+
+    Gym-->>Main: return
+    deactivate Gym
 ```
 
-## What to look at
+## Why this matters
 
-- **Builder in action.** The Staff sets each attribute via a chainable
-  method, then calls `build()`. The Builder validates and constructs
-  the immutable `MembershipPlan`. The Staff never calls the
-  `MembershipPlan` constructor directly -- it is private.
-- **Observer in action.** A single `publishPaymentDue(...)` call on
-  the `Gym` causes both of Alice's attached notifiers to fire. The
-  `Gym` never names `EmailMemberNotifier` or `PushMemberNotifier`
-  directly -- it iterates `Alice.getNotifiers()` and calls
-  `onEvent(event)` polymorphically through the `MemberNotifier`
-  interface.
+- One method call on the Subject (`Gym.publish`) drives N observers without
+  `Gym` knowing what they are. Add a fourth observer (e.g. a metrics emitter)
+  and `Gym` does not change.
+- All publication goes through the same private `publish(GymEvent)` method.
+  `Member`, `FitnessClass`, and `Main` never call `onEvent` directly - so when
+  you are debugging "why did this fire?", you only have to look in one place.
+- The lookups in steps 2 and 3 are deliberately separate steps so the diagram
+  reflects the two-stage validation that happens before any state changes
+  (and before any event is published).
+
+The PlantUML mirror of this diagram is in
+[publish-event-sequence.puml](publish-event-sequence.puml).

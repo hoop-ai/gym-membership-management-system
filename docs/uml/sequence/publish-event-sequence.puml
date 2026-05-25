@@ -1,45 +1,55 @@
 @startuml PublishEventSequence
-title Builder + Observer flows -- Sequence Diagram
+title Enrol Member In Class -- Sequence Diagram
 
-actor Staff
-participant "MembershipPlan.Builder" as Builder
-participant "MembershipPlan" as Plan
-participant "Gym" as Gym
-participant "Member alice" as Alice
-participant "EmailMemberNotifier" as Email
-participant "PushMemberNotifier" as Push
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+autonumber
 
-== Build a plan (Builder pattern) ==
+participant "Main"                                  as Main
+participant "Gym"                                   as Gym
+participant "FitnessClass\n(Yoga Flow)"             as Yoga
+participant "ConsoleObserver"                       as Console
+participant "AuditFileObserver"                     as Audit
+participant "InMemoryJournalObserver"               as Journal
 
-Staff -> Builder : new Builder("Premium Annual")
-Staff -> Builder : durationMonths(12)
-Staff -> Builder : monthlyFee(89.99)
-Staff -> Builder : accessTier(PREMIUM)
-Staff -> Builder : includesClass("Yoga")
-Staff -> Builder : build()
-Builder -> Plan : new MembershipPlan(this)
-Plan --> Builder : plan
-Builder --> Staff : MembershipPlan
+Main -> Gym : enrolMemberInClass(1, "yoga flow")
+activate Gym
 
-== Register the plan + enrol a member ==
+Gym -> Gym : getMember(1)
+note right of Gym : returns Sarah Connor
 
-Staff -> Gym : registerPlan(plan)
-Staff -> Gym : enrolMember("Alice", "alice@example.com", "", "Premium Annual")
-Gym -> Alice : new Member(...)
-Alice --> Gym : member
-Gym --> Staff : Member
+Gym -> Gym : getFitnessClass("yoga flow")
+note right of Gym : case-insensitive lookup\nreturns the "Yoga Flow" class
 
-Staff -> Alice : attachNotifier(new EmailMemberNotifier(alice))
-Staff -> Alice : attachNotifier(new PushMemberNotifier(alice))
+Gym -> Yoga : hasMember(sarah)
+Yoga --> Gym : false
 
-== Publish a targeted event (Observer pattern) ==
+Gym -> Yoga : isFull()
+Yoga --> Gym : false
 
-Staff -> Gym : publishPaymentDue(alice.id, dueDate, 89.99)
-Gym -> Alice : getNotifiers()
-Alice --> Gym : [email, push]
-Gym -> Email : onEvent(event)
-Email -> Email : append to sentLog
-Gym -> Push : onEvent(event)
-Push -> Push : append to sentLog
+Gym -> Yoga : addMember(sarah)
+Yoga --> Gym : ok
+
+Gym -> Gym : publish(new MemberEnrolledInClassEvent(sarah, yoga))
+note over Gym, Journal
+  Single publish() call fans out
+  to every registered observer.
+  This is the Observer pattern in action.
+end note
+
+Gym -> Console : onEvent(event)
+note right of Console : prints "[HH:MM:SS] [MEMBER_ENROLLED] ..." to stdout
+Console --> Gym
+
+Gym -> Audit : onEvent(event)
+note right of Audit : appends one line to audit.log
+Audit --> Gym
+
+Gym -> Journal : onEvent(event)
+note right of Journal : stores event in in-memory list
+Journal --> Gym
+
+Gym --> Main : return
+deactivate Gym
 
 @enduml

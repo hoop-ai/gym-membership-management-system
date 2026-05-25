@@ -3,163 +3,224 @@ title Gym Membership Management System -- Class Diagram
 
 skinparam classAttributeIconSize 0
 skinparam classFontName Helvetica
-skinparam classBorderColor #14283B
-skinparam classBackgroundColor #F4F8FB
+skinparam shadowing false
+skinparam linetype ortho
+left to right direction
 
-class MembershipPlan {
-    -name: String
-    -durationMonths: int
-    -monthlyFee: double
-    -accessTier: AccessTier
-    -includedClasses: Set<String>
-    -guestPassesPerMonth: int
-    -freezeDaysPerYear: int
-    -personalTrainerIncluded: boolean
-    +getName(): String
-    +getDurationMonths(): int
-    +getMonthlyFee(): double
-    +getAccessTier(): AccessTier
-    +getIncludedClasses(): Set<String>
-    +getTotalCost(): double
+' =====================================================================
+' Domain
+' =====================================================================
+class Member <<final>> {
+    - id : int
+    - name : String
+    - email : String
+    + Member(id : int, name : String, email : String)
+    + getId() : int
+    + getName() : String
+    + getEmail() : String
+    + equals(o : Object) : boolean
+    + hashCode() : int
 }
 
-class "MembershipPlan.Builder" as Builder {
-    -name: String
-    -durationMonths: int
-    -monthlyFee: double
-    -accessTier: AccessTier
-    -includedClasses: Set<String>
-    +Builder(name: String)
-    +durationMonths(int): Builder
-    +monthlyFee(double): Builder
-    +accessTier(AccessTier): Builder
-    +includesClass(String): Builder
-    +guestPassesPerMonth(int): Builder
-    +freezeDaysPerYear(int): Builder
-    +personalTrainerIncluded(boolean): Builder
-    +build(): MembershipPlan
+class FitnessClass <<final>> {
+    - name : String
+    - instructor : String
+    - dayOfWeek : DayOfWeek
+    - startTime : LocalTime
+    - durationMinutes : int
+    - capacity : int
+    - room : String
+    - difficulty : Difficulty
+    - equipment : List<String>
+    - description : String
+    - enrolledMembers : List<Member>
+    + getName() : String
+    + getInstructor() : String
+    + getCapacity() : int
+    + isFull() : boolean
+    + hasMember(m : Member) : boolean
+    + getEnrolledMembers() : List<Member>
+    + getEnrolmentCount() : int
+    ~ addMember(m : Member) : void
+    ~ removeMember(m : Member) : void
 }
 
-class Member {
-    -id: int
-    -name: String
-    -email: String
-    -phone: String
-    -plan: MembershipPlan
-    -status: MembershipStatus
-    -renewalDate: LocalDate
-    -notifiers: List<MemberNotifier>
-    +setStatus(MembershipStatus): void
-    +changePlan(MembershipPlan): void
-    +attachNotifier(MemberNotifier): void
-    +detachNotifier(MemberNotifier): void
+class "FitnessClass.Builder" as Builder {
+    - name : String
+    - instructor : String
+    - dayOfWeek : DayOfWeek = MONDAY
+    - startTime : LocalTime = 18:00
+    - durationMinutes : int = 60
+    - capacity : int = 20
+    - room : String = "Main floor"
+    - difficulty : Difficulty = INTERMEDIATE
+    - equipment : List<String>
+    - description : String = ""
+    + Builder(name : String, instructor : String)
+    + dayOfWeek(d : DayOfWeek) : Builder
+    + startTime(t : LocalTime) : Builder
+    + durationMinutes(m : int) : Builder
+    + capacity(c : int) : Builder
+    + room(r : String) : Builder
+    + difficulty(d : Difficulty) : Builder
+    + addEquipment(item : String) : Builder
+    + description(d : String) : Builder
+    + build() : FitnessClass
 }
 
-enum MembershipStatus {
-    PENDING
-    ACTIVE
-    EXPIRING
-    EXPIRED
-    FROZEN
-    CANCELLED
-    +canTransitionTo(MembershipStatus): boolean
+enum Difficulty {
+    BEGINNER
+    INTERMEDIATE
+    ADVANCED
 }
 
-enum AccessTier {
-    BASIC
-    STANDARD
-    PREMIUM
+' =====================================================================
+' Subject
+' =====================================================================
+class Gym <<Subject>> {
+    - name : String
+    - members : List<Member>
+    - classes : List<FitnessClass>
+    - observers : List<GymEventObserver>
+    - nextMemberId : int
+    + Gym(name : String)
+    + addObserver(o : GymEventObserver) : void
+    + removeObserver(o : GymEventObserver) : void
+    + observerCount() : int
+    + addMember(name : String, email : String) : Member
+    + removeMember(id : int) : void
+    + getMember(id : int) : Member
+    + getMembers() : List<Member>
+    + addClass(c : FitnessClass) : void
+    + removeClass(name : String) : void
+    + getFitnessClass(name : String) : FitnessClass
+    + getClasses() : List<FitnessClass>
+    + enrolMemberInClass(memberId : int, className : String) : void
+    + dropMemberFromClass(memberId : int, className : String) : void
+    - publish(e : GymEvent) : void
 }
 
+' =====================================================================
+' Pattern abstractions
+' =====================================================================
 abstract class GymEvent {
-    -timestamp: LocalDateTime
-    -targetMember: Member
-    -message: String
-    +isBroadcast(): boolean
-    +{abstract} getType(): String
+    # timestamp : LocalDateTime
+    # type : String
+    # message : String
+    # GymEvent(type : String, message : String)
+    + getTimestamp() : LocalDateTime
+    + getType() : String
+    + getMessage() : String
+    + toString() : String
 }
 
-class PaymentDueEvent {
-    -dueDate: LocalDate
-    -amount: double
+interface GymEventObserver {
+    + onEvent(event : GymEvent) : void
 }
 
-class RenewalReminderEvent {
-    -renewalDate: LocalDate
+' =====================================================================
+' Concrete events
+' =====================================================================
+class MemberAddedEvent <<final>> {
+    - member : Member
+    + MemberAddedEvent(m : Member)
+    + getMember() : Member
+}
+class MemberRemovedEvent <<final>> {
+    - member : Member
+    + MemberRemovedEvent(m : Member)
+    + getMember() : Member
+}
+class ClassAddedEvent <<final>> {
+    - fitnessClass : FitnessClass
+    + ClassAddedEvent(c : FitnessClass)
+    + getFitnessClass() : FitnessClass
+}
+class ClassRemovedEvent <<final>> {
+    - fitnessClass : FitnessClass
+    + ClassRemovedEvent(c : FitnessClass)
+    + getFitnessClass() : FitnessClass
+}
+class MemberEnrolledInClassEvent <<final>> {
+    - member : Member
+    - fitnessClass : FitnessClass
+    + MemberEnrolledInClassEvent(m : Member, c : FitnessClass)
+    + getMember() : Member
+    + getFitnessClass() : FitnessClass
+}
+class MemberDroppedFromClassEvent <<final>> {
+    - member : Member
+    - fitnessClass : FitnessClass
+    + MemberDroppedFromClassEvent(m : Member, c : FitnessClass)
+    + getMember() : Member
+    + getFitnessClass() : FitnessClass
 }
 
-class ClassCancelledEvent {
-    -className: String
-    -classDate: LocalDate
+' =====================================================================
+' Concrete observers
+' =====================================================================
+class ConsoleObserver <<final>> {
+    + onEvent(event : GymEvent) : void
+}
+class AuditFileObserver <<final>> {
+    + {static} DEFAULT_PATH : String = "audit.log"
+    - path : String
+    - warnedOnce : boolean
+    + AuditFileObserver()
+    + AuditFileObserver(path : String)
+    + getPath() : String
+    + onEvent(event : GymEvent) : void
+}
+class InMemoryJournalObserver <<final>> {
+    - journal : List<GymEvent>
+    + onEvent(event : GymEvent) : void
+    + getJournal() : List<GymEvent>
+    + size() : int
+    + clear() : void
 }
 
-class PromotionEvent {
-    -discountPercent: double
+' =====================================================================
+' Entry point
+' =====================================================================
+class Main <<final>> {
+    + {static} main(args : String[]) : void
 }
 
-interface MemberNotifier {
-    +getMember(): Member
-    +getChannel(): String
-    +onEvent(GymEvent): void
-}
+' =====================================================================
+' Relationships
+' =====================================================================
 
-class EmailMemberNotifier {
-    -sentLog: List<String>
-    +onEvent(GymEvent): void
-}
+' Gym aggregations
+Gym "1" o-- "1..*" Member            : registers
+Gym "1" o-- "1..*" FitnessClass      : schedules
+Gym "1" o-- "1..*" GymEventObserver  : notifies
 
-class SmsMemberNotifier {
-    -sentLog: List<String>
-    +onEvent(GymEvent): void
-}
+' Enrolment + value link
+FitnessClass "0..*" o-- "0..*" Member : enrols
+FitnessClass --> Difficulty           : has
 
-class PushMemberNotifier {
-    -sentLog: List<String>
-    +onEvent(GymEvent): void
-}
+' Builder cluster
+FitnessClass +-- Builder
+Builder ..> FitnessClass : <<creates>>
 
-class Gym {
-    -name: String
-    -members: List<Member>
-    -planCatalogue: Map<String, MembershipPlan>
-    -eventJournal: List<GymEvent>
-    +registerPlan(MembershipPlan): void
-    +enrolMember(...): Member
-    +publishEvent(GymEvent): void
-    +publishPaymentDue(...): void
-    +publishRenewalReminder(...): void
-    +publishClassCancellation(...): void
-    +publishPromotion(...): void
-}
+' Event inheritance
+GymEvent <|-- MemberAddedEvent
+GymEvent <|-- MemberRemovedEvent
+GymEvent <|-- ClassAddedEvent
+GymEvent <|-- ClassRemovedEvent
+GymEvent <|-- MemberEnrolledInClassEvent
+GymEvent <|-- MemberDroppedFromClassEvent
 
-MembershipPlan +-- Builder
-Builder ..> MembershipPlan : build()
-MembershipPlan ..> AccessTier
+' Observer implementation
+GymEventObserver <|.. ConsoleObserver
+GymEventObserver <|.. AuditFileObserver
+GymEventObserver <|.. InMemoryJournalObserver
 
-Member o--> MembershipPlan
-Member ..> MembershipStatus
-Member o--> MemberNotifier
+' Publication
+Gym ..> GymEvent          : <<publishes>>
+Gym ..> GymEventObserver  : onEvent(GymEvent)
 
-GymEvent <|-- PaymentDueEvent
-GymEvent <|-- RenewalReminderEvent
-GymEvent <|-- ClassCancelledEvent
-GymEvent <|-- PromotionEvent
-GymEvent ..> Member
-
-MemberNotifier <|.. EmailMemberNotifier
-MemberNotifier <|.. SmsMemberNotifier
-MemberNotifier <|.. PushMemberNotifier
-MemberNotifier ..> GymEvent
-MemberNotifier ..> Member
-
-Gym o--> Member
-Gym o--> MembershipPlan
-Gym ..> GymEvent
-Gym ..> MemberNotifier
-
-note bottom of Gym
-  Builder client (consumes MembershipPlan)
-  Observer subject (dispatches GymEvent)
-end note
+' Entry point
+Main ..> Gym : <<uses>>
 
 @enduml

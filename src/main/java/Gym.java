@@ -22,16 +22,10 @@ import java.util.List;
  * </ul>
  *
  * <p><strong>Case-insensitivity.</strong> Class-name lookups
- * ({@link #getClass(String)}, {@link #removeClass(String)},
+ * ({@link #getFitnessClass(String)}, {@link #removeClass(String)},
  * {@link #enrolMemberInClass(int, String)}, etc.) match on case-folded
  * names — "Yoga Flow", "yoga flow", and "YOGA FLOW" all refer to the same
  * class. The class's own stored name is preserved as supplied.</p>
- *
- * <p>This class shadows {@link Object#getClass()} with its own
- * {@link #getClass(String)} overload. Because the overload takes a parameter,
- * the no-arg {@code Object.getClass()} method is still available — but
- * callers within this package should prefer {@code this.getClass()} only
- * when they mean the reflection method, which is rare.</p>
  */
 public class Gym {
 
@@ -195,18 +189,17 @@ public class Gym {
      * @throws IllegalArgumentException if no class with that name exists
      */
     public void removeClass(String className) {
-        FitnessClass c = getClass(className);
+        FitnessClass c = getFitnessClass(className);
         classes.remove(c);
         publish(new ClassRemovedEvent(c));
     }
 
     /**
-     * Looks up a class by name (case-insensitive). Overloads
-     * {@link Object#getClass()}.
+     * Looks up a class by name (case-insensitive).
      *
      * @throws IllegalArgumentException if no class with that name exists
      */
-    public FitnessClass getClass(String className) {
+    public FitnessClass getFitnessClass(String className) {
         if (className == null || className.trim().isEmpty()) {
             throw new IllegalArgumentException(
                 "Cannot look up class: name must not be blank.");
@@ -260,7 +253,7 @@ public class Gym {
      */
     public void enrolMemberInClass(int memberId, String className) {
         Member m = getMember(memberId);
-        FitnessClass c = getClass(className);
+        FitnessClass c = getFitnessClass(className);
         if (c.hasMember(m)) {
             throw new IllegalArgumentException(
                 "Cannot enrol " + m.getName() + " in '" + c.getName() +
@@ -284,7 +277,7 @@ public class Gym {
      */
     public void dropMemberFromClass(int memberId, String className) {
         Member m = getMember(memberId);
-        FitnessClass c = getClass(className);
+        FitnessClass c = getFitnessClass(className);
         if (!c.hasMember(m)) {
             throw new IllegalArgumentException(
                 "Cannot drop " + m.getName() + " from '" + c.getName() +

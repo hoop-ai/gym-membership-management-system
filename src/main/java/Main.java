@@ -38,6 +38,15 @@ public final class Main {
     private static final String AUDIT_PATH = "audit.log";
 
     public static void main(String[] args) {
+        // Make stdout/stderr UTF-8 so em-dashes and check marks survive
+        // redirection on Windows consoles that default to cp1252.
+        try {
+            System.setOut(new PrintStream(System.out, true, "UTF-8"));
+            System.setErr(new PrintStream(System.err, true, "UTF-8"));
+        } catch (UnsupportedEncodingException ignored) {
+            // every JVM supports UTF-8; this catch satisfies the compiler.
+        }
+
         // Reset audit.log so the demo always shows a fresh capture.
         resetAuditLog();
 

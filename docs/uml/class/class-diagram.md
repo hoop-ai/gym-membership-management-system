@@ -1,148 +1,238 @@
-# Class Diagram
+# Class Diagram - Gym Membership Management System
 
-Gym Membership Management System -- 19 classes organised in three layers
-(domain / pattern / coordination). The PlantUML source is in
-[gym-management-class.puml](gym-management-class.puml).
+This diagram captures the static structure of the rebuilt Gym Membership
+Management System. Every domain type, pattern abstraction, concrete event, and
+concrete observer in `src/main/java/` appears below. The visual centre of the
+diagram is the `Gym` class, which acts both as the application's aggregate root
+(holding members, classes, and observers) and as the Subject in the Observer
+pattern. `Main` sits to the side as the single entry point that wires everything
+together.
+
+Two clusters are worth tracing on the diagram. The **Builder cluster**
+(`FitnessClass` plus its nested `Builder`) shows the Creational pattern: only
+the nested `Builder` can construct a `FitnessClass`, and `build()` re-validates
+the combined state before returning an immutable instance. The **Observer
+cluster** (`GymEvent` with six concrete events on one side, `GymEventObserver`
+with three concrete observers on the other) shows the Behavioral pattern: `Gym`
+publishes one event and every registered observer receives it through the
+`onEvent(GymEvent)` interface.
 
 ```mermaid
 classDiagram
-    class MembershipPlan {
-        -name String
-        -durationMonths int
-        -monthlyFee double
-        -accessTier AccessTier
-        -includedClasses Set~String~
-        -guestPassesPerMonth int
-        -freezeDaysPerYear int
-        -personalTrainerIncluded boolean
-        +getTotalCost() double
-    }
+    direction LR
 
-    class MembershipPlanBuilder {
-        +Builder(name)
-        +durationMonths(int) Builder
-        +monthlyFee(double) Builder
-        +accessTier(AccessTier) Builder
-        +includesClass(String) Builder
-        +guestPassesPerMonth(int) Builder
-        +freezeDaysPerYear(int) Builder
-        +personalTrainerIncluded(bool) Builder
-        +build() MembershipPlan
-    }
-
+    %% ----- Domain --------------------------------------------------
     class Member {
-        -id int
-        -name String
-        -email String
-        -phone String
-        -plan MembershipPlan
-        -status MembershipStatus
-        -renewalDate LocalDate
-        -notifiers List~MemberNotifier~
-        +setStatus(MembershipStatus)
-        +attachNotifier(MemberNotifier)
-        +detachNotifier(MemberNotifier)
+        -int id
+        -String name
+        -String email
+        +Member(int, String, String)
+        +getId() int
+        +getName() String
+        +getEmail() String
+        +equals(Object) boolean
+        +hashCode() int
     }
 
-    class MembershipStatus {
-        <<enum>>
-        PENDING
-        ACTIVE
-        EXPIRING
-        EXPIRED
-        FROZEN
-        CANCELLED
-        +canTransitionTo(MembershipStatus) bool
+    class FitnessClass {
+        -String name
+        -String instructor
+        -DayOfWeek dayOfWeek
+        -LocalTime startTime
+        -int durationMinutes
+        -int capacity
+        -String room
+        -Difficulty difficulty
+        -List~String~ equipment
+        -String description
+        -List~Member~ enrolledMembers
+        +getName() String
+        +getCapacity() int
+        +isFull() boolean
+        +hasMember(Member) boolean
+        +getEnrolledMembers() List~Member~
+        +getEnrolmentCount() int
+        ~addMember(Member) void
+        ~removeMember(Member) void
     }
 
-    class AccessTier {
-        <<enum>>
-        BASIC
-        STANDARD
-        PREMIUM
+    class FitnessClassBuilder {
+        <<nested in FitnessClass>>
+        -String name
+        -String instructor
+        -DayOfWeek dayOfWeek
+        -LocalTime startTime
+        -int durationMinutes
+        -int capacity
+        -String room
+        -Difficulty difficulty
+        -List~String~ equipment
+        -String description
+        +Builder(String, String)
+        +dayOfWeek(DayOfWeek) Builder
+        +startTime(LocalTime) Builder
+        +durationMinutes(int) Builder
+        +capacity(int) Builder
+        +room(String) Builder
+        +difficulty(Difficulty) Builder
+        +addEquipment(String) Builder
+        +description(String) Builder
+        +build() FitnessClass
     }
 
+    class Difficulty {
+        <<enumeration>>
+        BEGINNER
+        INTERMEDIATE
+        ADVANCED
+    }
+
+    %% ----- Subject -------------------------------------------------
+    class Gym {
+        <<Subject>>
+        -String name
+        -List~Member~ members
+        -List~FitnessClass~ classes
+        -List~GymEventObserver~ observers
+        -int nextMemberId
+        +Gym(String)
+        +addObserver(GymEventObserver) void
+        +removeObserver(GymEventObserver) void
+        +observerCount() int
+        +addMember(String, String) Member
+        +removeMember(int) void
+        +getMember(int) Member
+        +getMembers() List~Member~
+        +addClass(FitnessClass) void
+        +removeClass(String) void
+        +getFitnessClass(String) FitnessClass
+        +getClasses() List~FitnessClass~
+        +enrolMemberInClass(int, String) void
+        +dropMemberFromClass(int, String) void
+        -publish(GymEvent) void
+    }
+
+    %% ----- Pattern abstractions ------------------------------------
     class GymEvent {
         <<abstract>>
-        -timestamp LocalDateTime
-        -targetMember Member
-        -message String
-        +isBroadcast() bool
+        #LocalDateTime timestamp
+        #String type
+        #String message
+        #GymEvent(String, String)
+        +getTimestamp() LocalDateTime
         +getType() String
+        +getMessage() String
+        +toString() String
     }
 
-    class PaymentDueEvent {
-        -dueDate LocalDate
-        -amount double
-    }
-
-    class RenewalReminderEvent {
-        -renewalDate LocalDate
-    }
-
-    class ClassCancelledEvent {
-        -className String
-        -classDate LocalDate
-    }
-
-    class PromotionEvent {
-        -discountPercent double
-    }
-
-    class MemberNotifier {
+    class GymEventObserver {
         <<interface>>
+        +onEvent(GymEvent) void
+    }
+
+    %% ----- Concrete events -----------------------------------------
+    class MemberAddedEvent {
+        -Member member
+        +MemberAddedEvent(Member)
         +getMember() Member
-        +getChannel() String
-        +onEvent(GymEvent)
+    }
+    class MemberRemovedEvent {
+        -Member member
+        +MemberRemovedEvent(Member)
+        +getMember() Member
+    }
+    class ClassAddedEvent {
+        -FitnessClass fitnessClass
+        +ClassAddedEvent(FitnessClass)
+        +getFitnessClass() FitnessClass
+    }
+    class ClassRemovedEvent {
+        -FitnessClass fitnessClass
+        +ClassRemovedEvent(FitnessClass)
+        +getFitnessClass() FitnessClass
+    }
+    class MemberEnrolledInClassEvent {
+        -Member member
+        -FitnessClass fitnessClass
+        +MemberEnrolledInClassEvent(Member, FitnessClass)
+        +getMember() Member
+        +getFitnessClass() FitnessClass
+    }
+    class MemberDroppedFromClassEvent {
+        -Member member
+        -FitnessClass fitnessClass
+        +MemberDroppedFromClassEvent(Member, FitnessClass)
+        +getMember() Member
+        +getFitnessClass() FitnessClass
     }
 
-    class EmailMemberNotifier
-    class SmsMemberNotifier
-    class PushMemberNotifier
-
-    class Gym {
-        -name String
-        -members List~Member~
-        -planCatalogue Map~String,MembershipPlan~
-        -eventJournal List~GymEvent~
-        +registerPlan(MembershipPlan)
-        +enrolMember(name, email, phone, planName) Member
-        +publishEvent(GymEvent)
+    %% ----- Concrete observers --------------------------------------
+    class ConsoleObserver {
+        +onEvent(GymEvent) void
+    }
+    class AuditFileObserver {
+        -String path
+        -boolean warnedOnce
+        +AuditFileObserver()
+        +AuditFileObserver(String)
+        +getPath() String
+        +onEvent(GymEvent) void
+    }
+    class InMemoryJournalObserver {
+        -List~GymEvent~ journal
+        +onEvent(GymEvent) void
+        +getJournal() List~GymEvent~
+        +size() int
+        +clear() void
     }
 
-    MembershipPlan ..> AccessTier
-    MembershipPlanBuilder ..> MembershipPlan : build()
+    %% ----- Entry point ---------------------------------------------
+    class Main {
+        +main(String[]) void
+    }
 
-    Member o--> MembershipPlan
-    Member ..> MembershipStatus
-    Member o--> MemberNotifier
+    %% ----- Relationships: Gym aggregations -------------------------
+    Gym "1" o-- "1..*" Member : registers
+    Gym "1" o-- "1..*" FitnessClass : schedules
+    Gym "1" o-- "1..*" GymEventObserver : notifies
 
-    GymEvent <|-- PaymentDueEvent
-    GymEvent <|-- RenewalReminderEvent
-    GymEvent <|-- ClassCancelledEvent
-    GymEvent <|-- PromotionEvent
-    GymEvent ..> Member
+    %% Enrolment + value link
+    FitnessClass "0..*" o-- "0..*" Member : enrols
+    FitnessClass --> Difficulty : has
 
-    MemberNotifier <|.. EmailMemberNotifier
-    MemberNotifier <|.. SmsMemberNotifier
-    MemberNotifier <|.. PushMemberNotifier
-    MemberNotifier ..> GymEvent
+    %% Builder creates the product (Builder is nested in FitnessClass)
+    FitnessClassBuilder ..> FitnessClass : creates
+    FitnessClass *-- FitnessClassBuilder : nested
 
-    Gym o--> Member
-    Gym o--> MembershipPlan
-    Gym ..> GymEvent
-    Gym ..> MemberNotifier
+    %% Event inheritance
+    GymEvent <|-- MemberAddedEvent
+    GymEvent <|-- MemberRemovedEvent
+    GymEvent <|-- ClassAddedEvent
+    GymEvent <|-- ClassRemovedEvent
+    GymEvent <|-- MemberEnrolledInClassEvent
+    GymEvent <|-- MemberDroppedFromClassEvent
+
+    %% Observer implementation
+    GymEventObserver <|.. ConsoleObserver
+    GymEventObserver <|.. AuditFileObserver
+    GymEventObserver <|.. InMemoryJournalObserver
+
+    %% Publication
+    Gym ..> GymEvent : publishes
+    Gym ..> GymEventObserver : onEvent
+
+    %% Entry point usage
+    Main ..> Gym : uses
 ```
 
-## What to look at
+## Legend
 
-- **Two pattern hierarchies sit side by side.** The Builder side is
-  `MembershipPlan` and its nested `Builder` (drawn as
-  `MembershipPlanBuilder` here because Mermaid does not render nested
-  notation cleanly). The Observer side is `GymEvent` with four
-  subclasses plus `MemberNotifier` with three implementations.
-- **`Gym` only references abstractions.** Its fields are
-  `List<Member>`, `Map<String, MembershipPlan>`, and `List<GymEvent>`
-  -- never a concrete event or notifier.
-- **`MembershipStatus` sits alongside `Member`** and provides the
-  lightweight State pattern that enforces lifecycle transitions.
+- Solid arrow with hollow triangle (`<|--`) - class inheritance (concrete events extend `GymEvent`).
+- Dashed arrow with hollow triangle (`<|..`) - interface implementation (concrete observers implement `GymEventObserver`).
+- Open diamond (`o--`) - aggregation; the `Gym` owns the lifecycle of its members, classes, and observers.
+- Filled diamond (`*--`) - composition; `FitnessClassBuilder` is `FitnessClass.Builder` in code, a static nested class of `FitnessClass`.
+- Dashed arrow (`..>`) - usage dependency (Builder creates a `FitnessClass`; `Gym` publishes a `GymEvent` and dispatches to observers; `Main` drives `Gym`).
+- `+` public, `-` private, `#` protected, `~` package-private. `FitnessClass.addMember` and `FitnessClass.removeMember` are package-private on purpose - only `Gym` should call them.
+
+The PlantUML mirror of this diagram is in
+[gym-management-class.puml](gym-management-class.puml).
